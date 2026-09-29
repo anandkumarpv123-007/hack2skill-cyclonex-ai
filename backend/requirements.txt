@@ -1,0 +1,19 @@
+# CYCLONEX Backend Dependencies
+# Web & API Framework
+fastapi>=0.115.0
+uvicorn>=0.30.0
+pydantic>=2.10.0
+pydantic-settings>=2.5.0
+python-dotenv>=1.0.0
+
+# Scientific & Deterministic Risk Engine Stack
+numpy>=2.0.0
+pandas>=2.2.0
+shapely>=2.0.0
+geopandas>=1.0.0
+pyogrio>=0.9.0
+pyproj>=3.6.0
+
+# Testing & HTTP Clients
+pytest>=8.0.0
+httpx>=0.27.0
