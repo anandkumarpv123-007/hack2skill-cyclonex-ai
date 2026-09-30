@@ -22,6 +22,7 @@ interface MapContainerProps {
   center?: [number, number]; // [lon, lat]
   zoom?: number;
   onSelectAsset?: (asset: any) => void;
+  severityFilter?: "ALL" | "EXTREME" | "HIGH" | "MODERATE";
 }
 
 export default function MapContainer({
@@ -30,19 +31,24 @@ export default function MapContainer({
   center = [80.5, 15.8],
   zoom = 7.5,
   onSelectAsset,
+  severityFilter = "ALL",
 }: MapContainerProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [isMapReady, setIsMapReady] = useState(false);
+  const [basemapMode, setBasemapMode] = useState<"satellite" | "dark">("satellite");
+  const lastCenterRef = useRef<[number, number] | null>(null);
 
   // Keep latest props in refs to eliminate stale closure bugs during map load/idle events
   const spatialLayersRef = useRef(spatialLayers);
   const infrastructureAssetsRef = useRef(infrastructureAssets);
   const onSelectAssetRef = useRef(onSelectAsset);
+  const severityFilterRef = useRef(severityFilter);
   spatialLayersRef.current = spatialLayers;
   infrastructureAssetsRef.current = infrastructureAssets;
   onSelectAssetRef.current = onSelectAsset;
+  severityFilterRef.current = severityFilter;
 
   // Fully idempotent layer and marker rendering procedure
   const updateLayers = useCallback(() => {
@@ -209,6 +215,8 @@ export default function MapContainer({
     }
 
     // 7. Infrastructure Markers
+    const activeFilter = (severityFilterRef.current || "ALL").toUpperCase();
+
     currentAssets.forEach((rawAsset) => {
       // Support both GeoJSON Feature and direct object formats
       const props = rawAsset.properties || rawAsset;
@@ -216,9 +224,14 @@ export default function MapContainer({
       const coords = geom.coordinates;
       if (!coords || geom.type !== "Point") return;
 
+      const assetHazard = (props.hazard_level || rawAsset.hazard_level || props.risk_level || "MODERATE").toUpperCase();
+      if (activeFilter !== "ALL" && assetHazard !== activeFilter) {
+        return;
+      }
+
       const el = document.createElement("div");
       el.className =
-        "flex items-center justify-center cursor-pointer transition-transform hover:scale-125 select-none";
+        "flex items-center justify-center cursor-pointer select-none";
 
       const assetType = (props.type || rawAsset.type || "asset").toLowerCase();
       const isHospital = assetType.includes("hospital");
@@ -251,10 +264,26 @@ export default function MapContainer({
         : "Critical Facility";
 
       el.innerHTML = `
-        <div style="background-color: ${bgColor}; width: 28px; height: 28px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 0 10px rgba(0,0,0,0.6);">
+        <div class="marker-pin" style="background-color: ${bgColor}; width: 28px; height: 28px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 0 8px rgba(0,0,0,0.6); transition: box-shadow 0.15s ease, border-color 0.15s ease;">
           ${iconText}
         </div>
       `;
+
+      el.addEventListener("mouseenter", () => {
+        const pin = el.querySelector(".marker-pin") as HTMLElement;
+        if (pin) {
+          pin.style.boxShadow = "0 0 0 3px #06b6d4, 0 0 14px rgba(6,182,212,0.8)";
+          pin.style.borderColor = "#a5f3fc";
+        }
+      });
+
+      el.addEventListener("mouseleave", () => {
+        const pin = el.querySelector(".marker-pin") as HTMLElement;
+        if (pin) {
+          pin.style.boxShadow = "0 0 8px rgba(0,0,0,0.6)";
+          pin.style.borderColor = "#ffffff";
+        }
+      });
 
       el.addEventListener("click", () => {
         if (onSelectAssetRef.current) {
@@ -293,7 +322,7 @@ export default function MapContainer({
         closeOnClick: false,
       }).setHTML(popupContent);
 
-      const marker = new maplibregl.Marker({ element: el })
+      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
         .setLngLat([coords[0], coords[1]])
         .setPopup(popup)
         .addTo(map);
@@ -302,16 +331,32 @@ export default function MapContainer({
     });
   }, []);
 
-  // Initialize MapLibre instance
+  // Initialize MapLibre instance with ESRI World Imagery (Satellite) by default + reference boundaries
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Use ESRI World Dark Gray Canvas: High-reliability, keyless, dark tactical cartography
+    // Use ESRI World Imagery (Satellite) + Boundaries & Places reference layer
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: {
         version: 8,
         sources: {
+          esriSatellite: {
+            type: "raster",
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            ],
+            tileSize: 256,
+            attribution: "© Esri, Maxar, Earthstar Geographics",
+          },
+          esriReference: {
+            type: "raster",
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+            ],
+            tileSize: 256,
+            attribution: "© Esri",
+          },
           esriDark: {
             type: "raster",
             tiles: [
@@ -323,11 +368,28 @@ export default function MapContainer({
         },
         layers: [
           {
+            id: "esri-satellite-layer",
+            type: "raster",
+            source: "esriSatellite",
+            minzoom: 0,
+            maxzoom: 19,
+          },
+          {
+            id: "esri-reference-layer",
+            type: "raster",
+            source: "esriReference",
+            minzoom: 0,
+            maxzoom: 19,
+          },
+          {
             id: "esri-dark-layer",
             type: "raster",
             source: "esriDark",
             minzoom: 0,
             maxzoom: 18,
+            layout: {
+              visibility: "none",
+            },
           },
         ],
       },
@@ -356,16 +418,37 @@ export default function MapContainer({
     };
   }, []);
 
-  // Update view center when scenario changes
+  // Basemap switcher handler
+  const handleToggleBasemap = (mode: "satellite" | "dark") => {
+    setBasemapMode(mode);
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    if (mode === "satellite") {
+      map.setLayoutProperty("esri-satellite-layer", "visibility", "visible");
+      map.setLayoutProperty("esri-reference-layer", "visibility", "visible");
+      map.setLayoutProperty("esri-dark-layer", "visibility", "none");
+    } else {
+      map.setLayoutProperty("esri-satellite-layer", "visibility", "none");
+      map.setLayoutProperty("esri-reference-layer", "visibility", "none");
+      map.setLayoutProperty("esri-dark-layer", "visibility", "visible");
+    }
+  };
+
+  // Update view center when scenario changes (guarded against jitter on click)
   useEffect(() => {
     if (mapRef.current && isMapReady) {
-      mapRef.current.flyTo({
-        center: center,
-        zoom: zoom,
-        speed: 1.2,
-        curve: 1.4,
-        essential: true,
-      });
+      const prev = lastCenterRef.current;
+      if (!prev || Math.abs(prev[0] - center[0]) > 0.001 || Math.abs(prev[1] - center[1]) > 0.001) {
+        lastCenterRef.current = [center[0], center[1]];
+        mapRef.current.flyTo({
+          center: center,
+          zoom: zoom,
+          speed: 1.2,
+          curve: 1.4,
+          essential: true,
+        });
+      }
     }
   }, [center[0], center[1], zoom, isMapReady]);
 
@@ -389,16 +472,50 @@ export default function MapContainer({
         map.off("idle", onReady);
       };
     }
-  }, [spatialLayers, infrastructureAssets, isMapReady, updateLayers]);
+  }, [spatialLayers, infrastructureAssets, severityFilter, isMapReady, updateLayers]);
 
   return (
     <div className="relative w-full h-[520px] rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl">
       <div ref={mapContainerRef} className="w-full h-full" />
 
+      {/* Loading Skeleton */}
+      {!isMapReady && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm text-slate-400">
+          <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+          <p className="text-xs font-mono tracking-wider text-slate-300">INITIALIZING TACTICAL MAP CANVASES...</p>
+        </div>
+      )}
+
       {/* GEE Satellite Feeds Status Badge */}
       <div className="absolute top-4 left-4 z-10 px-2.5 py-1.5 rounded-lg bg-slate-950/90 border border-slate-800 text-[10px] font-mono text-cyan-300 backdrop-blur shadow-lg flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         <span>GEE Feeds: USGS/SRTMGL1_003 (30m) • COPERNICUS/S1_GRD SAR</span>
+      </div>
+
+      {/* Basemap Switcher */}
+      <div className="absolute top-3.5 right-14 z-10 flex items-center bg-slate-950/90 border border-slate-800 rounded-lg p-0.5 backdrop-blur shadow-lg text-[11px] font-mono">
+        <button
+          type="button"
+          onClick={() => handleToggleBasemap("satellite")}
+          className={`px-2.5 py-1 rounded transition font-medium cursor-pointer ${
+            basemapMode === "satellite"
+              ? "bg-cyan-600 text-white shadow font-bold"
+              : "text-slate-400 hover:text-white"
+          }`}
+        >
+          🛰️ Satellite
+        </button>
+        <button
+          type="button"
+          onClick={() => handleToggleBasemap("dark")}
+          className={`px-2.5 py-1 rounded transition font-medium cursor-pointer ${
+            basemapMode === "dark"
+              ? "bg-cyan-600 text-white shadow font-bold"
+              : "text-slate-400 hover:text-white"
+          }`}
+        >
+          🗺️ Dark Canvas
+        </button>
       </div>
 
       {/* Map Legend Overlay */}

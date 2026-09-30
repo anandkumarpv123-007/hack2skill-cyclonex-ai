@@ -109,7 +109,7 @@ export default function HumanImpactWidget({
             <span className="text-[10px] font-mono text-emerald-400 font-bold">Genset Backed</span>
           </div>
           <span className="text-[10px] text-slate-400 block">
-            {hospitalsAtRisk} facilities with 72h auxiliary diesel
+            {hospitalsAtRisk} {hospitalsAtRisk === 1 ? "facility" : "facilities"} with 72h auxiliary diesel
           </span>
         </div>
       </div>

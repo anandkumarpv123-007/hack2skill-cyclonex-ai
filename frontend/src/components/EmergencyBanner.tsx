@@ -9,6 +9,8 @@ interface EmergencyBannerProps {
   surgeHeight: number;
   landfallTarget: string;
   highestRiskDistrict: string;
+  severity?: string;
+  isEmergencyMode?: boolean;
   onViewMap: () => void;
 }
 
@@ -19,10 +21,12 @@ export default function EmergencyBanner({
   surgeHeight,
   landfallTarget,
   highestRiskDistrict,
+  severity = "HIGH",
+  isEmergencyMode = false,
   onViewMap,
 }: EmergencyBannerProps) {
   return (
-    <div className="bg-gradient-to-r from-red-950/90 via-red-900/60 to-red-950/90 border-b border-red-500/40 px-4 sm:px-6 py-3 transition-all duration-300">
+    <div data-testid="emergency-banner" className="bg-gradient-to-r from-red-950/90 via-red-900/60 to-red-950/90 border-b border-red-500/40 px-4 sm:px-6 py-3 transition-all duration-300">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
         {/* Left: Critical Strobe & Storm Details */}
         <div className="flex items-start sm:items-center space-x-3 min-w-0">
@@ -35,10 +39,15 @@ export default function EmergencyBanner({
               <span className="font-mono text-[11px] font-black tracking-widest text-red-400 uppercase">
                 ⚠ CYCLONE IMPACT THREAT ALERT
               </span>
-              <RiskBadge level="EXTREME" size="sm" />
+              <RiskBadge level={severity} size="sm" />
               <span className="text-white font-bold tracking-wide">
                 • {cycloneName.toUpperCase()} ({category})
               </span>
+              {isEmergencyMode && (
+                <span className="px-2 py-0.5 rounded bg-red-600 text-white font-mono text-[10px] font-black animate-pulse">
+                  CRITICAL EVACUATION PROTOCOL ACTIVE
+                </span>
+              )}
             </div>
 
             <p className="text-slate-300 text-xs truncate max-w-3xl">

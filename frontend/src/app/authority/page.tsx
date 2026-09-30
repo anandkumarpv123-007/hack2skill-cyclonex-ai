@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   ShieldAlert,
@@ -58,6 +58,7 @@ import InfrastructureDetailDrawer, {
   InfrastructureAsset,
 } from "@/components/InfrastructureDetailDrawer";
 import RiskBadge, { getRiskColor } from "@/components/RiskBadge";
+import { getCviSeverity } from "@/lib/severity";
 import {
   fetchBenchmarks,
   fetchCycloneById,
@@ -98,6 +99,7 @@ export default function AuthorityDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [exportToast, setExportToast] = useState<string | null>(null);
   const [copyToast, setCopyToast] = useState<string | null>(null);
+  const [syncToast, setSyncToast] = useState<string | null>(null);
 
   // Command OS state
   const [currentPage, setCurrentPage] = useState<NavPageId>("dashboard");
@@ -144,9 +146,18 @@ export default function AuthorityDashboardPage() {
         setDispatches(advResp.dispatches);
       }
       setInfrastructureAssets(infraGeo.features || []);
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
+      setSyncToast(`Data updated · ${timeStr} IST`);
+      setTimeout(() => setSyncToast(null), 3500);
     } catch (err: any) {
       console.error("Error loading CYCLONEX data:", err);
       setError(`Failed to synchronize operational intelligence: ${err.message}`);
+      setCyclone(null);
+      setRiskData(null);
+      setAdvisory(null);
+      setDispatches(null);
     } finally {
       setLoading(false);
     }
@@ -195,30 +206,74 @@ export default function AuthorityDashboardPage() {
     setTimeout(() => setCopyToast(null), 3500);
   };
 
-  // Convert raw infrastructure GeoJSON features to strongly typed InfrastructureAsset objects
-  const parsedAssets: InfrastructureAsset[] = infrastructureAssets.map((f: any, idx: number) => {
-    const props = f.properties || f;
-    const geom = f.geometry || f;
-    const coords = geom.coordinates || [80.4, 15.8];
-    const riskLevel = (props.risk_level || props.hazard_level || "HIGH").toUpperCase();
-    return {
-      id: f.id || props.name || `asset-${idx}`,
-      name: props.name || "Critical Lifeline Node",
-      type: props.type || "Facility",
-      district: props.district || "Coastal District",
-      lat: coords[1],
-      lon: coords[0],
-      elevation_m: props.elevation_m !== undefined ? props.elevation_m : 4.5,
-      distance_from_coast_km: props.distance_km || props.distance_from_coast_km || 3.2,
-      risk_level: riskLevel,
-      vulnerability_score:
-        props.vulnerability_score || (riskLevel === "EXTREME" ? 92 : riskLevel === "HIGH" ? 76 : 48),
-      in_surge_zone: props.in_surge_zone || false,
-      in_extreme_wind: props.in_extreme_wind || true,
-      capacity: props.capacity || props.beds,
-      recommended_action: props.recommended_action || "Execute protective structural hardening.",
-    };
-  });
+  // Memoize evaluated lookup map from backend deterministic evaluated assets
+  const evaluatedMap = useMemo(() => {
+    const map = new Map<string, any>();
+    if (riskData?.exposure_summary?.all_evaluated_assets) {
+      riskData.exposure_summary.all_evaluated_assets.forEach((item: any) => {
+        if (item.name) {
+          map.set(item.name.toLowerCase().trim(), item);
+        }
+      });
+    }
+    return map;
+  }, [riskData?.exposure_summary?.all_evaluated_assets]);
+
+  // Convert raw infrastructure GeoJSON features to strongly typed InfrastructureAsset objects with real calculated parameters
+  const parsedAssets: InfrastructureAsset[] = useMemo(() => {
+    return infrastructureAssets.map((f: any, idx: number) => {
+      const props = f.properties || f;
+      const geom = f.geometry || f;
+      const coords = geom.coordinates || [80.4, 15.8];
+      const assetName = props.name || "Critical Lifeline Node";
+      const evalData = evaluatedMap.get(assetName.toLowerCase().trim());
+
+      const riskLevel = (evalData?.hazard_level || props.hazard_level || props.risk_level || "HIGH").toUpperCase();
+      const elev = evalData?.elev_m !== undefined ? evalData.elev_m : (props.elevation_m !== undefined ? props.elevation_m : 4.5);
+      const dist = evalData?.dist_coast_km !== undefined ? evalData.dist_coast_km : (props.dist_coast_km || props.distance_km || 3.2);
+      const vuln = evalData?.vulnerability_score !== undefined ? evalData.vulnerability_score : (props.vulnerability_score || (riskLevel === "EXTREME" ? 92 : riskLevel === "HIGH" ? 76 : 48));
+      const inSurge = evalData ? evalData.in_surge_zone : (props.in_surge_zone || false);
+      const action = evalData?.recommended_action || props.recommended_action || "Execute protective structural hardening.";
+
+      return {
+        id: f.id || props.name || `asset-${idx}`,
+        name: assetName,
+        type: props.type || evalData?.type || "Facility",
+        district: props.district || evalData?.district || "Coastal District",
+        lat: coords[1],
+        lon: coords[0],
+        elevation_m: elev,
+        distance_from_coast_km: dist,
+        risk_level: riskLevel,
+        vulnerability_score: vuln,
+        in_surge_zone: inSurge,
+        in_extreme_wind: evalData?.in_wind_swath ?? props.in_extreme_wind ?? true,
+        capacity: props.capacity || props.beds || evalData?.capacity || evalData?.beds,
+        recommended_action: action,
+      };
+    });
+  }, [infrastructureAssets, evaluatedMap]);
+
+  const infrastructureAssetsForMap = useMemo(() => {
+    return infrastructureAssets.map((f: any) => {
+      const props = f.properties || f;
+      const assetName = props.name;
+      const evalData = assetName ? evaluatedMap.get(assetName.toLowerCase().trim()) : null;
+      if (!evalData) return f;
+      return {
+        ...f,
+        properties: {
+          ...props,
+          hazard_level: evalData.hazard_level,
+          risk_level: evalData.hazard_level,
+          elevation_m: evalData.elev_m,
+          dist_coast_km: evalData.dist_coast_km,
+          vulnerability_score: evalData.vulnerability_score,
+          in_surge_zone: evalData.in_surge_zone,
+        },
+      };
+    });
+  }, [infrastructureAssets, evaluatedMap]);
 
   // Filter infrastructure assets based on active filters
   const filteredAssets = parsedAssets.filter((a) => {
@@ -246,9 +301,9 @@ export default function AuthorityDashboardPage() {
   });
 
   const scenarioOptions = [
-    { id: "cyclone_michaung_2023", name: "Cyclone Michaung (Dec 2023) — Cat 4 VSCS" },
-    { id: "cyclone_hudhud_2014", name: "Cyclone Hudhud (Oct 2014) — Cat 4 VSCS" },
-    { id: "cyclone_live_simulation", name: "Live Bay of Bengal Simulation — Cat 5 Super Cyclone" },
+    { id: "cyclone_michaung_2023", name: "Cyclone Michaung (Dec 2023) — SCS at landfall" },
+    { id: "cyclone_hudhud_2014", name: "Cyclone Hudhud (Oct 2014) — ESCS at landfall" },
+    { id: "cyclone_live_simulation", name: "Live Bay of Bengal Simulation — SuCS (Cat 5 equivalent)" },
   ];
 
   const highestCvi = riskData?.cvi_rankings?.[0] || {
@@ -299,6 +354,8 @@ export default function AuthorityDashboardPage() {
             surgeHeight={riskData.surge_scenario.total_scenario_surge_m}
             landfallTarget={cyclone.landfall_target}
             highestRiskDistrict={highestCvi.district}
+            severity={getCviSeverity(highestCvi.cvi_score)}
+            isEmergencyMode={isEmergencyMode}
             onViewMap={() => setCurrentPage("map")}
           />
         )}
@@ -312,6 +369,12 @@ export default function AuthorityDashboardPage() {
         {copyToast && (
           <div className="fixed bottom-6 right-6 z-50 bg-cyan-950 border border-cyan-500 text-cyan-200 px-4 py-3 rounded-xl shadow-2xl text-xs font-mono animate-in slide-in-from-bottom duration-200">
             {copyToast}
+          </div>
+        )}
+        {syncToast && (
+          <div className="fixed bottom-6 right-6 z-50 bg-slate-900 border border-cyan-500/60 text-cyan-200 px-4 py-3 rounded-xl shadow-2xl text-xs font-mono animate-in slide-in-from-bottom duration-200 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span>{syncToast}</span>
           </div>
         )}
 
@@ -421,7 +484,8 @@ export default function AuthorityDashboardPage() {
                       <div className="h-[430px] w-full relative">
                         <MapContainer
                           spatialLayers={riskData.spatial_layers}
-                          infrastructureAssets={infrastructureAssets}
+                          infrastructureAssets={infrastructureAssetsForMap}
+                          severityFilter={selectedZone}
                           center={[80.4, 15.8]}
                           zoom={7.4}
                           onSelectAsset={(rawAsset) => {
@@ -777,49 +841,52 @@ export default function AuthorityDashboardPage() {
               )}
 
               {/* ======================================================== */}
-              {/* PAGE 4: RISK MAP                                         */}
+              {/* PAGE 4: RISK MAP (Persistent Map Container)              */}
               {/* ======================================================== */}
-              {currentPage === "map" && riskData && cyclone && (
-                <div className="space-y-4 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div>
-                      <h2 className="text-base font-black text-white">Interactive GIS Geospatial Risk Map</h2>
-                      <p className="text-xs text-slate-400">
-                        MapLibre GL vector layer visualization with deterministic wind swaths, surge inundation, and lifeline assets
-                      </p>
+              <div className={currentPage === "map" ? "space-y-4 animate-in fade-in duration-200" : "hidden"}>
+                {riskData && cyclone && (
+                  <>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <h2 className="text-base font-black text-white">Interactive GIS Geospatial Risk Map</h2>
+                        <p className="text-xs text-slate-400">
+                          MapLibre GL vector layer visualization with deterministic wind swaths, surge inundation, and lifeline assets
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 bg-[#0c1220] p-1 rounded-xl border border-[#1e293b]">
+                        {(["ALL", "EXTREME", "HIGH", "MODERATE"] as const).map((z) => (
+                          <button
+                            key={z}
+                            onClick={() => setSelectedZone(z)}
+                            className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition cursor-pointer ${
+                              selectedZone === z ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
+                            }`}
+                          >
+                            {z}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 bg-[#0c1220] p-1 rounded-xl border border-[#1e293b]">
-                      {(["ALL", "EXTREME", "HIGH", "MODERATE"] as const).map((z) => (
-                        <button
-                          key={z}
-                          onClick={() => setSelectedZone(z)}
-                          className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition cursor-pointer ${
-                            selectedZone === z ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
-                          }`}
-                        >
-                          {z}
-                        </button>
-                      ))}
+                    <div className="h-[650px] w-full rounded-2xl overflow-hidden border border-[#1e293b] shadow-2xl relative">
+                      <MapContainer
+                        spatialLayers={riskData.spatial_layers}
+                        infrastructureAssets={infrastructureAssetsForMap}
+                        severityFilter={selectedZone}
+                        center={[80.4, 15.8]}
+                        zoom={7.5}
+                        onSelectAsset={(rawAsset) => {
+                          const found = parsedAssets.find(
+                            (p) => p.name === (rawAsset.properties?.name || rawAsset.name)
+                          );
+                          if (found) setSelectedAsset(found);
+                        }}
+                      />
                     </div>
-                  </div>
-
-                  <div className="h-[650px] w-full rounded-2xl overflow-hidden border border-[#1e293b] shadow-2xl relative">
-                    <MapContainer
-                      spatialLayers={riskData.spatial_layers}
-                      infrastructureAssets={infrastructureAssets}
-                      center={[80.4, 15.8]}
-                      zoom={7.5}
-                      onSelectAsset={(rawAsset) => {
-                        const found = parsedAssets.find(
-                          (p) => p.name === (rawAsset.properties?.name || rawAsset.name)
-                        );
-                        if (found) setSelectedAsset(found);
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
+                  </>
+                )}
+              </div>
 
               {/* ======================================================== */}
               {/* PAGE 5: INFRASTRUCTURE                                   */}
@@ -901,30 +968,60 @@ export default function AuthorityDashboardPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#1e293b] font-mono">
-                          {filteredAssets.map((asset) => (
-                            <tr
-                              key={asset.id}
-                              onClick={() => setSelectedAsset(asset)}
-                              className="hover:bg-[#131d31]/50 cursor-pointer transition"
-                            >
-                              <td className="py-3 px-3 font-bold text-white">{asset.name}</td>
-                              <td className="py-3 px-3 text-cyan-300">{asset.type}</td>
-                              <td className="py-3 px-3 text-slate-300">{asset.district}</td>
-                              <td className="py-3 px-3 text-amber-300">{asset.distance_from_coast_km} km</td>
-                              <td className="py-3 px-3 text-slate-300">{asset.elevation_m}m</td>
-                              <td className="py-3 px-3">
-                                <RiskBadge level={asset.risk_level} size="sm" />
-                              </td>
-                              <td className="py-3 px-3">
-                                <button
-                                  onClick={() => setSelectedAsset(asset)}
-                                  className="px-2.5 py-1 rounded bg-cyan-950 text-cyan-300 hover:bg-cyan-900 border border-cyan-800 text-[11px] font-bold transition cursor-pointer"
-                                >
-                                  Inspect
-                                </button>
+                          {filteredAssets.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="py-12 text-center">
+                                <div className="max-w-xs mx-auto space-y-3 font-sans">
+                                  <div className="w-10 h-10 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center mx-auto text-slate-400">
+                                    <Search className="w-5 h-5" />
+                                  </div>
+                                  <p className="text-slate-200 text-sm font-semibold">
+                                    No facilities match this filter
+                                  </p>
+                                  <p className="text-slate-400 text-xs">
+                                    Try adjusting your search query, type, or risk filter criteria.
+                                  </p>
+                                  <button
+                                    onClick={() => {
+                                      setInfraSearch("");
+                                      setInfraType("All");
+                                      setInfraRisk("All");
+                                      setSelectedZone("ALL");
+                                    }}
+                                    className="px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold font-mono transition inline-flex items-center gap-1.5 shadow cursor-pointer"
+                                  >
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                    Clear filters
+                                  </button>
+                                </div>
                               </td>
                             </tr>
-                          ))}
+                          ) : (
+                            filteredAssets.map((asset) => (
+                              <tr
+                                key={asset.id}
+                                onClick={() => setSelectedAsset(asset)}
+                                className="hover:bg-[#131d31]/50 cursor-pointer transition"
+                              >
+                                <td className="py-3 px-3 font-bold text-white">{asset.name}</td>
+                                <td className="py-3 px-3 text-cyan-300">{asset.type}</td>
+                                <td className="py-3 px-3 text-slate-300">{asset.district}</td>
+                                <td className="py-3 px-3 text-amber-300">{asset.distance_from_coast_km} km</td>
+                                <td className="py-3 px-3 text-slate-300">{asset.elevation_m}m</td>
+                                <td className="py-3 px-3">
+                                  <RiskBadge level={asset.risk_level} size="sm" />
+                                </td>
+                                <td className="py-3 px-3">
+                                  <button
+                                    onClick={() => setSelectedAsset(asset)}
+                                    className="px-2.5 py-1 rounded bg-cyan-950 text-cyan-300 hover:bg-cyan-900 border border-cyan-800 text-[11px] font-bold transition cursor-pointer"
+                                  >
+                                    Inspect
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1132,6 +1229,11 @@ export default function AuthorityDashboardPage() {
                           <p className="text-xs text-slate-400">
                             Zero-latency civil protection dissemination across 4 verified vectors
                           </p>
+                          <div className="flex items-center gap-2 pt-1">
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold">
+                              SIMULATED DISPATCHES — For Operational Rehearsal &amp; Testing Only
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -1486,6 +1588,7 @@ export default function AuthorityDashboardPage() {
         asset={selectedAsset}
         onClose={() => setSelectedAsset(null)}
         cycloneName={cyclone?.name || "Cyclone"}
+        surgeHeight={riskData?.surge_scenario?.total_scenario_surge_m}
       />
     </div>
   );

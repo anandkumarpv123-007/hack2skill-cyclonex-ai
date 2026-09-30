@@ -23,6 +23,7 @@ interface TopHeaderProps {
   alertCount?: number;
   onOpenAlerts: () => void;
   onRefresh: () => void;
+  isSyncing?: boolean;
   isEmergencyMode: boolean;
   onToggleEmergencyMode: () => void;
 }
@@ -35,6 +36,7 @@ export default function TopHeader({
   alertCount = 4,
   onOpenAlerts,
   onRefresh,
+  isSyncing = false,
   isEmergencyMode,
   onToggleEmergencyMode,
 }: TopHeaderProps) {
@@ -59,21 +61,17 @@ export default function TopHeader({
       } backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30`}
     >
       {/* Page Title & Breadcrumb */}
-      <div className="flex items-center space-x-3">
-        <h1 className="text-sm sm:text-base font-black text-white tracking-wide uppercase font-sans">
+      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 pr-2">
+        <h1 className="text-xs sm:text-sm md:text-base font-black text-white tracking-wide uppercase font-sans truncate max-w-[180px] sm:max-w-xs md:max-w-md">
           {pageTitle}
         </h1>
         <span
-          className={`hidden sm:inline-block w-1.5 h-1.5 rounded-full ${
+          className={`hidden md:inline-block w-1.5 h-1.5 rounded-full shrink-0 ${
             isEmergencyMode ? "bg-red-400 animate-ping" : "bg-cyan-400"
           }`}
         />
-        <span
-          className={`hidden sm:inline-block text-[11px] font-mono ${
-            isEmergencyMode ? "text-red-400 font-bold" : "text-slate-400"
-          }`}
-        >
-          {isEmergencyMode ? "CRITICAL EVACUATION PROTOCOL ACTIVE" : "COMMAND OS"}
+        <span className="hidden md:inline-block text-[11px] font-mono text-slate-400 shrink-0">
+          COMMAND OS
         </span>
       </div>
 
@@ -150,8 +148,9 @@ export default function TopHeader({
           onClick={onRefresh}
           className="p-1.5 rounded-lg bg-[#151f32] text-slate-300 hover:text-white border border-[#22334e] transition cursor-pointer"
           title="Synchronize Live Telemetry"
+          disabled={isSyncing}
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin text-cyan-400" : ""}`} />
         </button>
       </div>
     </header>

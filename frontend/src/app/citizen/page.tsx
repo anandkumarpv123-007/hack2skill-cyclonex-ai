@@ -14,6 +14,8 @@ import {
   PhoneCall,
   RefreshCw,
   MessageSquare,
+  Search,
+  MapPin,
 } from "lucide-react";
 import {
   fetchBenchmarks,
@@ -28,20 +30,103 @@ import {
   ShelterCandidate,
 } from "@/types/cyclone";
 
-// Quick-select coastal locations by scenario
+export interface CoastalPlace {
+  name: string;
+  nameTe: string;
+  district: string;
+  pincode: string;
+  lat: number;
+  lon: number;
+}
+
+export const AP_COASTAL_PLACES: CoastalPlace[] = [
+  // Bapatla District
+  { name: "Bapatla Center", nameTe: "బాపట్ల సెంటర్", district: "Bapatla", pincode: "522101", lat: 15.904, lon: 80.467 },
+  { name: "Suryalanka Beach", nameTe: "సూర్యలంక బీచ్", district: "Bapatla", pincode: "522101", lat: 15.865, lon: 80.505 },
+  { name: "Chirala Coastal Town", nameTe: "చీరాల", district: "Bapatla", pincode: "523155", lat: 15.815, lon: 80.355 },
+  { name: "Vetapalem Mandal", nameTe: "వేటపాలెం", district: "Bapatla", pincode: "523187", lat: 15.783, lon: 80.317 },
+  { name: "Nizampatnam Harbor", nameTe: "నిజాంపట్నం హార్బర్", district: "Bapatla", pincode: "522314", lat: 15.915, lon: 80.665 },
+  { name: "Repalle Town", nameTe: "రేపల్లె", district: "Bapatla", pincode: "522265", lat: 16.020, lon: 80.840 },
+
+  // Krishna District
+  { name: "Machilipatnam Town Center", nameTe: "మచిలీపట్నం", district: "Krishna", pincode: "521001", lat: 16.195, lon: 81.145 },
+  { name: "Manginapudi Beach", nameTe: "మంగినపూడి బీచ్", district: "Krishna", pincode: "521002", lat: 16.230, lon: 81.180 },
+  { name: "Avanigadda Mandal", nameTe: "అవనిగడ్డ", district: "Krishna", pincode: "521121", lat: 16.020, lon: 80.920 },
+  { name: "Nagayalanka Coastal Village", nameTe: "నాగాయలంక", district: "Krishna", pincode: "521120", lat: 15.950, lon: 80.920 },
+
+  // Prakasam District
+  { name: "Ongole City Center", nameTe: "ఒంగోలు", district: "Prakasam", pincode: "523001", lat: 15.505, lon: 80.050 },
+  { name: "Kothapatnam Beach", nameTe: "కొత్తపట్నం బీచ్", district: "Prakasam", pincode: "523286", lat: 15.460, lon: 80.120 },
+  { name: "Singarayakonda Mandal", nameTe: "సింగరాయకొండ", district: "Prakasam", pincode: "523101", lat: 15.250, lon: 80.030 },
+
+  // SPSR Nellore District
+  { name: "Nellore City Center", nameTe: "నెల్లూరు", district: "SPSR Nellore", pincode: "524001", lat: 14.442, lon: 79.986 },
+  { name: "Kavali Coastal Town", nameTe: "కావలి", district: "SPSR Nellore", pincode: "524201", lat: 14.915, lon: 79.990 },
+  { name: "Mypadu Beach Habitation", nameTe: "మైపాడు బీచ్", district: "SPSR Nellore", pincode: "524313", lat: 14.510, lon: 80.180 },
+  { name: "Krishnapatnam Port Sector", nameTe: "కృష్ణపట్నం పోర్ట్", district: "SPSR Nellore", pincode: "524344", lat: 14.250, lon: 80.120 },
+
+  // Visakhapatnam District
+  { name: "Visakhapatnam City Center", nameTe: "విశాఖపట్నం సెంటర్", district: "Visakhapatnam", pincode: "530002", lat: 17.725, lon: 83.325 },
+  { name: "RK Beach / Maharani Peta", nameTe: "ఆర్కే బీచ్ / మహారాణిపేట", district: "Visakhapatnam", pincode: "530002", lat: 17.715, lon: 83.315 },
+  { name: "Bheemunipatnam (Bheemili)", nameTe: "భీమునిపట్నం (భీమిలి)", district: "Visakhapatnam", pincode: "531163", lat: 17.885, lon: 83.445 },
+  { name: "Madhurawada Sector", nameTe: "మధురవాడ", district: "Visakhapatnam", pincode: "530048", lat: 17.825, lon: 83.345 },
+  { name: "Gajuwaka Industrial Zone", nameTe: "గాజువాక", district: "Visakhapatnam", pincode: "530026", lat: 17.690, lon: 83.210 },
+  { name: "Anakapalle Town Center", nameTe: "అనకాపల్లి", district: "Anakapalli", pincode: "531001", lat: 17.689, lon: 83.003 },
+
+  // Vizianagaram & Srikakulam
+  { name: "Vizianagaram Fort Center", nameTe: "విజయనగరం కోట", district: "Vizianagaram", pincode: "535001", lat: 18.125, lon: 83.415 },
+  { name: "Srikakulam Town", nameTe: "శ్రీకాకుళం", district: "Srikakulam", pincode: "532001", lat: 18.297, lon: 83.897 },
+  { name: "Kalingapatnam Coastal Ward", nameTe: "కళింగపట్నం", district: "Srikakulam", pincode: "532406", lat: 18.340, lon: 84.130 },
+
+  // Godavari Coastal
+  { name: "Kakinada Port City", nameTe: "కాకినాడ", district: "Kakinada", pincode: "533001", lat: 16.989, lon: 82.247 },
+  { name: "Uppada Beach Village", nameTe: "ఉప్పాడ బీచ్", district: "Kakinada", pincode: "533448", lat: 17.085, lon: 82.330 },
+  { name: "Amalapuram Coastal Sector", nameTe: "అమలాపురం", district: "Konaseema", pincode: "533201", lat: 16.578, lon: 82.006 },
+  { name: "Antarvedi Temple Coastal Habitation", nameTe: "అంతర్వేది", district: "Konaseema", pincode: "533252", lat: 16.330, lon: 81.730 },
+  { name: "Narsapur Harbor Town", nameTe: "నర్సాపూర్", district: "West Godavari", pincode: "534275", lat: 16.435, lon: 81.695 },
+];
+
+// Quick-select coastal locations by scenario with actual village/ward center coordinates
 const MICHAUNG_LOCATIONS = [
-  { name: "Suryalanka / Bapatla Beach", lat: 15.852, lon: 80.518 },
-  { name: "Chirala Coastal Ward", lat: 15.824, lon: 80.352 },
-  { name: "Nizampatnam Fishery Port", lat: 15.908, lon: 80.672 },
-  { name: "Machilipatnam Manginapudi", lat: 16.248, lon: 81.242 },
+  { name: "Suryalanka Village / Bapatla Center", lat: 15.865, lon: 80.505 },
+  { name: "Chirala Coastal Ward Center", lat: 15.815, lon: 80.355 },
+  { name: "Nizampatnam Harbor Habitation", lat: 15.915, lon: 80.665 },
+  { name: "Machilipatnam Town Center", lat: 16.195, lon: 81.145 },
 ];
 
 const HUDHUD_LOCATIONS = [
-  { name: "RK Beach / Visakhapatnam", lat: 17.712, lon: 83.318 },
-  { name: "Bheemunipatnam Coast", lat: 17.892, lon: 83.456 },
-  { name: "Madhurawada Sector", lat: 17.818, lon: 83.352 },
-  { name: "Vizianagaram Fort Area", lat: 18.115, lon: 83.410 },
+  { name: "RK Beach Town Colony / Vizag Center", lat: 17.725, lon: 83.325 },
+  { name: "Bheemunipatnam Village Center", lat: 17.885, lon: 83.445 },
+  { name: "Madhurawada Residential Sector", lat: 17.825, lon: 83.345 },
+  { name: "Vizianagaram Fort Center", lat: 18.125, lon: 83.415 },
 ];
+
+const ERROR_MESSAGES: Record<string, { en: string; te: string }> = {
+  EMPTY: {
+    en: "Please enter both latitude and longitude values.",
+    te: "దయచేసి అక్షాంశం మరియు రేఖాంశం నమోదు చేయండి.",
+  },
+  NAN: {
+    en: "Coordinates must be valid decimal numbers (e.g., 15.865, 80.505).",
+    te: "అక్షాంశం మరియు రేఖాంశం సంఖ్యలుగా ఉండాలి (ఉదా: 15.865, 80.505).",
+  },
+  LAT_RANGE: {
+    en: "Invalid latitude. Latitude must be between -90 and 90 degrees.",
+    te: "చెల్లని అక్షాంశం. అక్షాంశం -90 నుండి 90 మధ్య ఉండాలి.",
+  },
+  LON_RANGE: {
+    en: "Invalid longitude. Longitude must be between -180 and 180 degrees.",
+    te: "చెల్లని రేఖాంశం. రేఖాంశం -180 నుండి 180 మధ్య ఉండాలి.",
+  },
+  GEO_DENIED: {
+    en: "Location access denied. Please enter coordinates manually or select a location above.",
+    te: "లొకేషన్ యాక్సెస్ నిరాకరించబడింది. దయచేసి వివరాలను మాన్యువల్‌గా నమోదు చేయండి.",
+  },
+  GEO_UNAVAILABLE: {
+    en: "Unable to retrieve your location. Please enter coordinates manually.",
+    te: "మీ స్థానాన్ని పొందలేకపోయాము. దయచేసి వివరాలను మాన్యువల్‌గా నమోదు చేయండి.",
+  },
+};
 
 export default function CitizenPortalPage() {
   const [locale, setLocale] = useState<Locale>("te"); // Default to Telugu for coastal AP citizens
@@ -51,11 +136,14 @@ export default function CitizenPortalPage() {
   const [advisory, setAdvisory] = useState<AdvisoryData | null>(null);
   const [shelters, setShelters] = useState<ShelterCandidate[]>([]);
   const [selectedLocation, setSelectedLocation] = useState(MICHAUNG_LOCATIONS[0]);
-  const [customLat, setCustomLat] = useState<string>("15.852");
-  const [customLon, setCustomLon] = useState<string>("80.518");
-  const [coordError, setCoordError] = useState<string | null>(null);
+  const [customLat, setCustomLat] = useState<string>("15.865");
+  const [customLon, setCustomLon] = useState<string>("80.505");
+  const [coordErrorCode, setCoordErrorCode] = useState<string | null>(null);
+  const [placeSearchQuery, setPlaceSearchQuery] = useState<string>("");
+  const [showPlaceSuggestions, setShowPlaceSuggestions] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingShelters, setLoadingShelters] = useState<boolean>(false);
+  const [loadingLocation, setLoadingLocation] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [smsMode, setSmsMode] = useState<"full" | "short">("full");
 
@@ -88,11 +176,13 @@ export default function CitizenPortalPage() {
 
   const loadScenarioData = async (scenarioId: string) => {
     setLoading(true);
-    setCoordError(null);
+    setCoordErrorCode(null);
     try {
       const isHudhud = scenarioId.includes("hudhud");
       const defaultLoc = isHudhud ? HUDHUD_LOCATIONS[0] : MICHAUNG_LOCATIONS[0];
       setSelectedLocation(defaultLoc);
+      setPlaceSearchQuery(defaultLoc.name);
+      setShowPlaceSuggestions(false);
       setCustomLat(defaultLoc.lat.toString());
       setCustomLon(defaultLoc.lon.toString());
 
@@ -117,11 +207,7 @@ export default function CitizenPortalPage() {
     const trimmedLon = lonStr.trim();
 
     if (!trimmedLat || !trimmedLon) {
-      setCoordError(
-        locale === "te"
-          ? "దయచేసి అక్షాంశం మరియు రేఖాంశం నమోదు చేయండి."
-          : "Please enter both latitude and longitude values."
-      );
+      setCoordErrorCode("EMPTY");
       return null;
     }
 
@@ -129,33 +215,21 @@ export default function CitizenPortalPage() {
     const lon = Number(trimmedLon);
 
     if (isNaN(lat) || isNaN(lon)) {
-      setCoordError(
-        locale === "te"
-          ? "అక్షాంశం మరియు రేఖాంశం సంఖ్యలుగా ఉండాలి (ఉదా: 15.852, 80.518)."
-          : "Coordinates must be valid decimal numbers (e.g., 15.852, 80.518)."
-      );
+      setCoordErrorCode("NAN");
       return null;
     }
 
     if (lat < -90 || lat > 90) {
-      setCoordError(
-        locale === "te"
-          ? "చెల్లని అక్షాంశం. అక్షాంశం -90 నుండి 90 మధ్య ఉండాలి."
-          : "Invalid latitude. Latitude must be between -90 and 90 degrees."
-      );
+      setCoordErrorCode("LAT_RANGE");
       return null;
     }
 
     if (lon < -180 || lon > 180) {
-      setCoordError(
-        locale === "te"
-          ? "చెల్లని రేఖాంశం. రేఖాంశం -180 నుండి 180 మధ్య ఉండాలి."
-          : "Invalid longitude. Longitude must be between -180 and 180 degrees."
-      );
+      setCoordErrorCode("LON_RANGE");
       return null;
     }
 
-    setCoordError(null);
+    setCoordErrorCode(null);
     return { lat, lon };
   };
 
@@ -166,17 +240,46 @@ export default function CitizenPortalPage() {
       setShelters(res.nearest_shelters || []);
     } catch (e) {
       console.error("Failed to load nearby shelters:", e);
-      setShelters([]);
+      // Keep previous shelters on network error if available
     } finally {
       setLoadingShelters(false);
     }
   };
 
+  const filteredPlaces = placeSearchQuery.trim()
+    ? AP_COASTAL_PLACES.filter((p) => {
+        const q = placeSearchQuery.toLowerCase().trim();
+        return (
+          p.name.toLowerCase().includes(q) ||
+          p.nameTe.includes(q) ||
+          p.district.toLowerCase().includes(q) ||
+          p.pincode.includes(q)
+        );
+      }).slice(0, 6)
+    : [];
+
+  const handleSelectPlace = (place: CoastalPlace) => {
+    const displayName = locale === "te" ? `${place.nameTe} (${place.pincode})` : `${place.name} (${place.pincode})`;
+    setPlaceSearchQuery(displayName);
+    setShowPlaceSuggestions(false);
+    setSelectedLocation({
+      name: locale === "te" ? place.nameTe : place.name,
+      lat: place.lat,
+      lon: place.lon,
+    });
+    setCustomLat(place.lat.toString());
+    setCustomLon(place.lon.toString());
+    setCoordErrorCode(null);
+    searchShelters(place.lat, place.lon, selectedScenarioId);
+  };
+
   const handleLocationSelect = (loc: { name: string; lat: number; lon: number }) => {
     setSelectedLocation(loc);
+    setPlaceSearchQuery(loc.name);
+    setShowPlaceSuggestions(false);
     setCustomLat(loc.lat.toString());
     setCustomLon(loc.lon.toString());
-    setCoordError(null);
+    setCoordErrorCode(null);
     searchShelters(loc.lat, loc.lon, selectedScenarioId);
   };
 
@@ -185,9 +288,40 @@ export default function CitizenPortalPage() {
     const valid = validateCoordinates(customLat, customLon);
     if (valid) {
       searchShelters(valid.lat, valid.lon, selectedScenarioId);
-    } else {
-      setShelters([]); // Clear stale recommendations on error
     }
+    // Do not wipe shelters on invalid input: keep previous shelters and show error above
+  };
+
+  const handleUseMyLocation = () => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setCoordErrorCode("GEO_UNAVAILABLE");
+      return;
+    }
+    setLoadingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = parseFloat(pos.coords.latitude.toFixed(4));
+        const lon = parseFloat(pos.coords.longitude.toFixed(4));
+        setCustomLat(lat.toString());
+        setCustomLon(lon.toString());
+        const locLabel = locale === "te" ? `నా స్థానం (GPS: ${lat}, ${lon})` : `My GPS Location (${lat}, ${lon})`;
+        setPlaceSearchQuery(locLabel);
+        setSelectedLocation({ name: locLabel, lat, lon });
+        setShowPlaceSuggestions(false);
+        setCoordErrorCode(null);
+        searchShelters(lat, lon, selectedScenarioId);
+        setLoadingLocation(false);
+      },
+      (err) => {
+        setLoadingLocation(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setCoordErrorCode("GEO_DENIED");
+        } else {
+          setCoordErrorCode("GEO_UNAVAILABLE");
+        }
+      },
+      { timeout: 8000, enableHighAccuracy: false }
+    );
   };
 
   const handleCopyText = (text: string) => {
@@ -313,7 +447,7 @@ export default function CitizenPortalPage() {
                 <span className="font-bold text-white text-sm">{cyclone.min_pressure_hpa} hPa</span>
               </div>
               <div>
-                <span className="text-rose-300 block text-[10px]">Storm Category</span>
+                <span className="text-rose-300 block text-[10px]">{t.storm_category}</span>
                 <span className="font-bold text-amber-300 text-sm truncate block">{cyclone.category}</span>
               </div>
             </div>
@@ -374,6 +508,115 @@ export default function CitizenPortalPage() {
             </span>
           </div>
 
+          {/* Primary Citizen-Friendly Location / Pincode Search Bar */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{t.search_place_label}</span>
+            </label>
+
+            <div className="flex flex-col sm:flex-row gap-2 relative">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                <input
+                  type="text"
+                  value={placeSearchQuery}
+                  onChange={(e) => {
+                    setPlaceSearchQuery(e.target.value);
+                    setShowPlaceSuggestions(true);
+                  }}
+                  onFocus={(e) => {
+                    setShowPlaceSuggestions(true);
+                    e.target.select();
+                  }}
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                  onBlur={() => setTimeout(() => setShowPlaceSuggestions(false), 200)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (filteredPlaces.length > 0) {
+                        handleSelectPlace(filteredPlaces[0]);
+                      }
+                    }
+                  }}
+                  placeholder={t.search_place_placeholder}
+                  data-testid="place-search-input"
+                  className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 text-xs sm:text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition shadow-inner"
+                />
+
+                {placeSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlaceSearchQuery("");
+                      setShowPlaceSuggestions(true);
+                    }}
+                    className="absolute right-3 top-3 text-slate-400 hover:text-white text-xs font-mono"
+                  >
+                    ✕
+                  </button>
+                )}
+
+                {/* Instant Autocomplete Suggestions */}
+                {showPlaceSuggestions && filteredPlaces.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl overflow-hidden divide-y divide-slate-800/80">
+                    {filteredPlaces.map((place) => (
+                      <button
+                        key={`${place.name}-${place.pincode}`}
+                        type="button"
+                        data-testid="place-suggestion-item"
+                        onClick={() => handleSelectPlace(place)}
+                        className="w-full text-left px-3.5 py-2.5 hover:bg-slate-900 transition flex items-center justify-between text-xs cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                          <div>
+                            <span className="font-bold text-white block">
+                              {locale === "te" ? place.nameTe : place.name}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              {place.district} District • PIN: {place.pincode}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/70 border border-emerald-800 px-2 py-0.5 rounded">
+                          Select
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Large GPS Detect Button */}
+              <button
+                type="button"
+                onClick={handleUseMyLocation}
+                disabled={loadingLocation}
+                className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow cursor-pointer whitespace-nowrap"
+              >
+                {loadingLocation ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <span>📍</span>
+                )}
+                <span>{loadingLocation ? t.calculating : t.use_my_location}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Active Area Indicator */}
+          <div className="flex items-center justify-between flex-wrap gap-2 px-3 py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-slate-400">{t.selected_area}:</span>
+              <strong className="text-white font-semibold">{selectedLocation.name}</strong>
+            </div>
+            <span className="text-[11px] font-mono text-slate-500">
+              GPS: {customLat}° N, {customLon}° E
+            </span>
+          </div>
+
           {/* Quick-Select Town Chips for Active Scenario */}
           <div>
             <span className="text-[11px] text-slate-400 block mb-1.5">
@@ -396,8 +639,11 @@ export default function CitizenPortalPage() {
             </div>
           </div>
 
-          {/* Manual Coordinate Form with Robust Validation */}
-          <form onSubmit={handleCustomSearch} className="space-y-2">
+          {/* Manual Coordinate Form with Robust Validation (For advanced/testing/emergency override) */}
+          <form onSubmit={handleCustomSearch} className="space-y-2 pt-2 border-t border-slate-800/80">
+            <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 mb-1">
+              <span>⚙ {t.advanced_coords}:</span>
+            </div>
             <div className="flex flex-wrap items-center gap-3 text-xs">
               <div className="flex items-center gap-1.5">
                 <span className="text-slate-400 font-mono">Lat:</span>
@@ -406,9 +652,9 @@ export default function CitizenPortalPage() {
                   value={customLat}
                   onChange={(e) => {
                     setCustomLat(e.target.value);
-                    if (coordError) setCoordError(null);
+                    if (coordErrorCode) setCoordErrorCode(null);
                   }}
-                  placeholder="e.g. 15.852"
+                  placeholder="e.g. 15.865"
                   className="w-28 px-2.5 py-1.5 rounded bg-slate-950 border border-slate-700 text-slate-200 font-mono focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -419,27 +665,27 @@ export default function CitizenPortalPage() {
                   value={customLon}
                   onChange={(e) => {
                     setCustomLon(e.target.value);
-                    if (coordError) setCoordError(null);
+                    if (coordErrorCode) setCoordErrorCode(null);
                   }}
-                  placeholder="e.g. 80.518"
+                  placeholder="e.g. 80.505"
                   className="w-28 px-2.5 py-1.5 rounded bg-slate-950 border border-slate-700 text-slate-200 font-mono focus:outline-none focus:border-emerald-500"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loadingShelters}
-                className="px-4 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-800 text-white font-medium transition flex items-center gap-1.5 shadow"
+                className="px-4 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-800 text-white font-medium transition flex items-center gap-1.5 shadow cursor-pointer"
               >
                 {loadingShelters && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                <span>{loadingShelters ? "Calculating..." : t.find_shelter_btn}</span>
+                <span>{loadingShelters ? t.calculating : t.find_shelter_btn}</span>
               </button>
             </div>
 
             {/* Validation Error Alert Banner */}
-            {coordError && (
+            {coordErrorCode && ERROR_MESSAGES[coordErrorCode] && (
               <div className="p-3 rounded-lg bg-rose-950/70 border border-rose-700 text-rose-200 text-xs flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
-                <span>{coordError}</span>
+                <span>{ERROR_MESSAGES[coordErrorCode][locale]}</span>
               </div>
             )}
           </form>
@@ -525,6 +771,26 @@ export default function CitizenPortalPage() {
                         : "SAFE: Elevated structure above active scenario surge level. Safe to evacuate."}
                     </div>
                   )}
+
+                  {/* Directions and Helpline Quick Links */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${s.lat || 15.85},${s.lon || 80.51}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-800/80 text-cyan-300 text-[11px] font-bold text-center flex items-center justify-center gap-1 transition"
+                    >
+                      <Compass className="w-3.5 h-3.5" />
+                      <span>{t.directions}</span>
+                    </a>
+                    <a
+                      href="tel:1070"
+                      className="py-1.5 px-3 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 text-[11px] font-bold flex items-center justify-center gap-1 transition"
+                    >
+                      <PhoneCall className="w-3.5 h-3.5" />
+                      <span>{t.call_helpline}</span>
+                    </a>
+                  </div>
                 </div>
               );
             })}
@@ -603,6 +869,30 @@ export default function CitizenPortalPage() {
           </section>
         )}
       </main>
+
+      {/* Sticky Bottom Emergency Quick-Action Bar */}
+      <div className="sticky bottom-0 z-40 bg-rose-950/95 border-t border-rose-800/80 backdrop-blur px-4 py-2.5 flex items-center justify-between gap-3 shadow-2xl">
+        <div className="flex items-center gap-2 text-rose-200 text-xs font-semibold">
+          <PhoneCall className="w-4 h-4 text-rose-400 animate-pulse" />
+          <span>{locale === "te" ? "24/7 రాష్ట్ర అత్యవసర హెల్ప్‌లైన్:" : "24/7 State Emergency Helplines:"}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <a
+            href="tel:1070"
+            className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow transition"
+          >
+            <PhoneCall className="w-3 h-3" />
+            <span>{t.call_helpline} (SDMA)</span>
+          </a>
+          <a
+            href="tel:112"
+            className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold text-xs flex items-center gap-1.5 shadow transition"
+          >
+            <PhoneCall className="w-3 h-3" />
+            <span>{t.call_police}</span>
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

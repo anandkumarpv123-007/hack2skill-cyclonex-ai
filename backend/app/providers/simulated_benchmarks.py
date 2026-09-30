@@ -97,7 +97,7 @@ HUDHUD_BENCHMARK = CycloneTrack(
     id="cyclone_hudhud_2014",
     name="Cyclone Hudhud",
     year=2014,
-    category="Very Severe Cyclonic Storm (VSCS)",
+    category="Extremely Severe Cyclonic Storm (ESCS)",
     is_simulated=True,
     data_source="IMD Historical Archive & IBTrACS [SIMULATED SCENARIO BENCHMARK]",
     landfall_target="Visakhapatnam, Andhra Pradesh",
@@ -137,7 +137,7 @@ HUDHUD_BENCHMARK = CycloneTrack(
             r34_km=240.0,
             r50_km=150.0,
             r64_km=90.0,
-            stage="Very Severe Cyclonic Storm (Peak)",
+            stage="Extremely Severe Cyclonic Storm (Peak)",
         ),
         Waypoint(
             time="2014-10-12T06:00:00Z",
@@ -165,9 +165,82 @@ HUDHUD_BENCHMARK = CycloneTrack(
 )
 
 
+LIVE_SIMULATION_BENCHMARK = CycloneTrack(
+    id="cyclone_live_simulation",
+    name="Live Bay of Bengal Simulation",
+    year=2026,
+    category="Super Cyclonic Storm (SuCS)",
+    is_simulated=True,
+    data_source="IMD / GEE Marine Simulation [LIVE SCENARIO BENCHMARK]",
+    landfall_target="Machilipatnam / Krishna Delta, Andhra Pradesh",
+    landfall_lat=16.18,
+    landfall_lon=81.13,
+    peak_wind_kmh=235.0,
+    min_pressure_hpa=915.0,
+    waypoints=[
+        Waypoint(
+            time="2026-09-30T00:00:00Z",
+            lat=13.0,
+            lon=86.0,
+            max_wind_kmh=140.0,
+            central_pressure_hpa=970.0,
+            r34_km=220.0,
+            r50_km=140.0,
+            r64_km=80.0,
+            stage="Very Severe Cyclonic Storm",
+        ),
+        Waypoint(
+            time="2026-09-30T12:00:00Z",
+            lat=14.2,
+            lon=84.5,
+            max_wind_kmh=180.0,
+            central_pressure_hpa=948.0,
+            r34_km=250.0,
+            r50_km=170.0,
+            r64_km=110.0,
+            stage="Extremely Severe Cyclonic Storm",
+        ),
+        Waypoint(
+            time="2026-10-01T00:00:00Z",
+            lat=15.2,
+            lon=83.0,
+            max_wind_kmh=225.0,
+            central_pressure_hpa=925.0,
+            r34_km=280.0,
+            r50_km=200.0,
+            r64_km=130.0,
+            stage="Super Cyclonic Storm",
+        ),
+        Waypoint(
+            time="2026-10-01T12:00:00Z",
+            lat=16.18,
+            lon=81.13,
+            max_wind_kmh=235.0,
+            central_pressure_hpa=915.0,
+            r34_km=300.0,
+            r50_km=210.0,
+            r64_km=140.0,
+            stage="Catastrophic Landfall (Machilipatnam Coast)",
+        ),
+        Waypoint(
+            time="2026-10-02T00:00:00Z",
+            lat=16.9,
+            lon=80.5,
+            max_wind_kmh=110.0,
+            central_pressure_hpa=965.0,
+            r34_km=160.0,
+            r50_km=90.0,
+            r64_km=0.0,
+            stage="Severe Cyclonic Storm (Inland Decay)",
+        ),
+    ],
+)
+
+
 BENCHMARKS_REGISTRY: Dict[str, CycloneTrack] = {
     MICHAUNG_BENCHMARK.id: MICHAUNG_BENCHMARK,
     HUDHUD_BENCHMARK.id: HUDHUD_BENCHMARK,
+    LIVE_SIMULATION_BENCHMARK.id: LIVE_SIMULATION_BENCHMARK,
 }
 
 

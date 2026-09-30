@@ -60,16 +60,16 @@ def calculate_district_cvi(
     # Clamp bounded result between 0.0 and 1.0
     cvi_score = round(max(0.0, min(1.0, raw_cvi)), 3)
 
-    # Classify Risk Level and Directive Severity
-    if cvi_score >= 0.80:
+    # Classify Risk Level and Directive Severity (Unified CVI Threshold)
+    if cvi_score >= 0.70:
         risk_level = "Extreme"
         risk_color = "#ef4444" # Red
         action_code = "IMMEDIATE_MANDATORY_EVACUATION"
-    elif cvi_score >= 0.60:
+    elif cvi_score >= 0.50:
         risk_level = "High"
         risk_color = "#f97316" # Orange
         action_code = "PREPARE_SHELTERS_EVACUATE_VULNERABLE"
-    elif cvi_score >= 0.35:
+    elif cvi_score >= 0.30:
         risk_level = "Moderate"
         risk_color = "#eab308" # Yellow
         action_code = "RESTRICT_MOVEMENT_SECURE_ASSETS"

@@ -26,6 +26,7 @@ export interface InfrastructureAsset {
   lon: number;
   elevation_m?: number;
   distance_from_coast_km?: number;
+  surge_margin_m?: number;
   risk_level: string;
   vulnerability_score?: number;
   in_surge_zone?: boolean;
@@ -39,12 +40,14 @@ interface InfrastructureDetailDrawerProps {
   asset: InfrastructureAsset | null;
   onClose: () => void;
   cycloneName: string;
+  surgeHeight?: number;
 }
 
 export default function InfrastructureDetailDrawer({
   asset,
   onClose,
   cycloneName,
+  surgeHeight = 2.2,
 }: InfrastructureDetailDrawerProps) {
   if (!asset) return null;
 
@@ -52,6 +55,7 @@ export default function InfrastructureDetailDrawer({
   const elevation = asset.elevation_m !== undefined ? asset.elevation_m : 4.5;
   const distCoast = asset.distance_from_coast_km !== undefined ? asset.distance_from_coast_km : 3.2;
   const score = asset.vulnerability_score !== undefined ? asset.vulnerability_score : 84;
+  const surgeMargin = asset.surge_margin_m !== undefined ? asset.surge_margin_m : Number((elevation - surgeHeight).toFixed(2));
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm transition-opacity animate-in fade-in duration-200">
@@ -110,13 +114,17 @@ export default function InfrastructureDetailDrawer({
             <div className="p-3 rounded-xl bg-[#131d31] border border-[#22334e] space-y-1">
               <span className="text-[10px] text-slate-500 block uppercase">ELEVATION (MSL)</span>
               <span className="text-white font-bold">{elevation} meters</span>
-              <span className="text-[10px] text-slate-400 block">Surge margin: -0.6m</span>
+              <span className={`text-[10px] font-bold block ${surgeMargin < 0 ? "text-rose-400" : "text-emerald-400"}`}>
+                Surge margin: {surgeMargin >= 0 ? "+" : ""}{surgeMargin}m
+              </span>
             </div>
 
             <div className="p-3 rounded-xl bg-[#131d31] border border-[#22334e] space-y-1">
               <span className="text-[10px] text-slate-500 block uppercase">COASTAL DISTANCE</span>
               <span className="text-cyan-300 font-bold">{distCoast} km</span>
-              <span className="text-[10px] text-rose-400 block">Zone A Proximity</span>
+              <span className={`text-[10px] block ${distCoast <= 5 ? "text-rose-400" : distCoast <= 15 ? "text-amber-400" : "text-slate-400"}`}>
+                {distCoast <= 5 ? "Zone A Proximity (<5km)" : distCoast <= 15 ? "Zone B Proximity (5-15km)" : "Inland (>15km)"}
+              </span>
             </div>
 
             <div className="p-3 rounded-xl bg-[#131d31] border border-[#22334e] space-y-1">

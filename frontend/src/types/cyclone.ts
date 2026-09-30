@@ -66,6 +66,7 @@ export interface ExposureSummary {
     in_64kt_wind: number;
     in_surge_inundation: number;
   };
+  all_evaluated_assets?: any[];
 }
 
 export interface DistrictCVI {

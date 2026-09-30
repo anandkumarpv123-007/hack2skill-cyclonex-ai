@@ -130,6 +130,7 @@ async def evaluate_risk(
         infrastructure_records=infrastructure_records,
         wind_swaths=wind_swaths,
         surge_scenario=surge_inundation,
+        surge_height_m=surge_calc["total_scenario_surge_m"],
     )
 
     # 4. Dynamic Spatial District Exposure & CVI Calculation

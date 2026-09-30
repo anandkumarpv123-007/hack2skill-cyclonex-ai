@@ -159,42 +159,57 @@ export default function Sidebar({
           const showBadge = item.id === "alerts" && alertCount > 0;
 
           return (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              title={isCollapsed ? item.label : undefined}
-              className={`w-full flex items-center rounded-xl transition-all duration-200 group text-left cursor-pointer ${
-                isCollapsed
-                  ? "justify-center p-3"
-                  : "px-3.5 py-2.5 space-x-3"
-              } ${
-                isActive
-                  ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/10 text-cyan-300 border border-cyan-500/40 shadow-lg shadow-cyan-500/10 font-bold"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-[#151f32]/70 border border-transparent"
-              }`}
-            >
-              <div className="relative shrink-0">
-                <Icon
-                  className={`w-5 h-5 transition-transform group-hover:scale-110 ${
-                    isActive ? "text-cyan-400" : "text-slate-400 group-hover:text-slate-200"
-                  }`}
-                />
-                {isCollapsed && showBadge && (
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 border border-[#0c1220] animate-pulse" />
-                )}
-              </div>
-
-              {!isCollapsed && (
-                <div className="flex-1 flex items-center justify-between min-w-0">
-                  <span className="text-xs tracking-wide truncate">{item.label}</span>
-                  {showBadge && (
-                    <span className="px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 text-[10px] font-mono font-bold animate-pulse">
-                      {alertCount}
-                    </span>
+            <div key={item.id} className="relative group">
+              <button
+                onClick={() => onNavigate(item.id)}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
+                className={`w-full flex items-center rounded-xl transition-all duration-200 outline-none focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500 text-left cursor-pointer ${
+                  isCollapsed
+                    ? "justify-center p-3"
+                    : "px-3.5 py-2.5 space-x-3"
+                } ${
+                  isActive
+                    ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/10 text-cyan-300 border border-cyan-500/40 shadow-lg shadow-cyan-500/10 font-bold"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-[#151f32]/70 border border-transparent"
+                }`}
+              >
+                <div className="relative shrink-0">
+                  <Icon
+                    className={`w-5 h-5 transition-transform group-hover:scale-110 ${
+                      isActive ? "text-cyan-400" : "text-slate-400 group-hover:text-slate-200"
+                    }`}
+                  />
+                  {isCollapsed && showBadge && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 border border-[#0c1220]" />
                   )}
                 </div>
+
+                {!isCollapsed && (
+                  <div className="flex-1 flex items-center justify-between min-w-0">
+                    <span className="text-xs tracking-wide truncate">{item.label}</span>
+                    {showBadge && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-medium ${
+                          isActive
+                            ? "bg-red-500/20 text-red-300 border border-red-500/50"
+                            : "bg-slate-800 text-slate-300 border border-slate-700/60"
+                        }`}
+                      >
+                        {alertCount}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </button>
+
+              {/* Collapsed Tooltip */}
+              {isCollapsed && (
+                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3.5 px-2.5 py-1 rounded-lg bg-[#131d31] border border-[#22334e] text-white text-xs font-mono font-bold whitespace-nowrap shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-50">
+                  {item.label}
+                </div>
               )}
-            </button>
+            </div>
           );
         })}
       </nav>

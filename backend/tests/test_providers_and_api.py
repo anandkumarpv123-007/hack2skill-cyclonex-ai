@@ -94,3 +94,16 @@ def test_risk_evaluate_endpoint(client: TestClient):
     exposure = data["exposure_summary"]
     assert isinstance(exposure["hospitals_at_risk"]["in_64kt"], int)
     assert isinstance(exposure["roads_at_risk_km"]["in_64kt_wind"], float)
+
+
+def test_live_simulation_risk_evaluate(client: TestClient):
+    """Verifies that cyclone_live_simulation evaluates without errors."""
+    payload = {"cyclone_id": "cyclone_live_simulation"}
+    res = client.post("/api/v1/risk/evaluate", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["cyclone_metadata"]["id"] == "cyclone_live_simulation"
+    assert data["cyclone_metadata"]["category"] == "Super Cyclonic Storm (SuCS)"
+    assert data["cyclone_metadata"]["peak_wind_kmh"] == 235.0
+    assert len(data["exposure_summary"]["all_evaluated_assets"]) > 0
+
