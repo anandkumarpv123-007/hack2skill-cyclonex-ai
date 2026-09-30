@@ -53,7 +53,7 @@ MICHAUNG_BENCHMARK = CycloneTrack(
             central_pressure_hpa=988.0,
             r34_km=160.0,
             r50_km=90.0,
-            r64_km=35.0,
+            r64_km=0.0,
             stage="Severe Cyclonic Storm",
         ),
         Waypoint(
@@ -64,7 +64,7 @@ MICHAUNG_BENCHMARK = CycloneTrack(
             central_pressure_hpa=980.0,
             r34_km=170.0,
             r50_km=100.0,
-            r64_km=45.0,
+            r64_km=0.0,
             stage="Severe Cyclonic Storm (Peak)",
         ),
         Waypoint(
@@ -75,7 +75,7 @@ MICHAUNG_BENCHMARK = CycloneTrack(
             central_pressure_hpa=984.0,
             r34_km=150.0,
             r50_km=85.0,
-            r64_km=30.0,
+            r64_km=0.0,
             stage="Landfall (Bapatla Coast)",
         ),
         Waypoint(

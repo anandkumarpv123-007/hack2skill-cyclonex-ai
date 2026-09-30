@@ -132,6 +132,36 @@ ANDHRA_COASTAL_INFRASTRUCTURE: List[Dict[str, Any]] = [
         "properties": {"capacity": 1500, "current_occupancy": 0, "elevation_m": 15.0, "generator": True},
         "geometry": {"type": "Point", "coordinates": [83.4560, 17.8920]},
     },
+    {
+        "id": "SHEL-RK-07",
+        "name": "RK Beach Coastal Multi-Purpose Shelter",
+        "type": "shelter",
+        "district": "Visakhapatnam",
+        "lat": 17.7120,
+        "lon": 83.3180,
+        "properties": {"capacity": 1200, "current_occupancy": 0, "elevation_m": 2.8, "generator": True},
+        "geometry": {"type": "Point", "coordinates": [83.3180, 17.7120]},
+    },
+    {
+        "id": "SHEL-MVD-08",
+        "name": "Madhurawada Elevated Cyclone Shelter",
+        "type": "shelter",
+        "district": "Visakhapatnam",
+        "lat": 17.8180,
+        "lon": 83.3520,
+        "properties": {"capacity": 1800, "current_occupancy": 0, "elevation_m": 18.5, "generator": True},
+        "geometry": {"type": "Point", "coordinates": [83.3520, 17.8180]},
+    },
+    {
+        "id": "SHEL-VIZ-09",
+        "name": "Vizianagaram Fort Relief Shelter",
+        "type": "shelter",
+        "district": "Vizianagaram",
+        "lat": 18.1150,
+        "lon": 83.4100,
+        "properties": {"capacity": 1000, "current_occupancy": 0, "elevation_m": 22.0, "generator": True},
+        "geometry": {"type": "Point", "coordinates": [83.4100, 18.1150]},
+    },
 
     # --- POWER SUBSTATIONS ---
     {
@@ -163,6 +193,26 @@ ANDHRA_COASTAL_INFRASTRUCTURE: List[Dict[str, Any]] = [
         "lon": 80.0120,
         "properties": {"voltage_kv": 400, "criticality": "vital", "flood_barrier": True},
         "geometry": {"type": "Point", "coordinates": [80.0120, 15.5350]},
+    },
+    {
+        "id": "SUB-VIZ-04",
+        "name": "400kV Kalpaka Grid Substation, Visakhapatnam",
+        "type": "substation",
+        "district": "Visakhapatnam",
+        "lat": 17.6850,
+        "lon": 83.2150,
+        "properties": {"voltage_kv": 400, "criticality": "vital", "flood_barrier": True},
+        "geometry": {"type": "Point", "coordinates": [83.2150, 17.6850]},
+    },
+    {
+        "id": "SUB-VZN-05",
+        "name": "220kV APTRANSCO Substation, Vizianagaram",
+        "type": "substation",
+        "district": "Vizianagaram",
+        "lat": 18.1250,
+        "lon": 83.3950,
+        "properties": {"voltage_kv": 220, "criticality": "high", "flood_barrier": False},
+        "geometry": {"type": "Point", "coordinates": [83.3950, 18.1250]},
     },
 
     # --- MAJOR EVACUATION HIGHWAY CORRIDORS (LineStrings) ---

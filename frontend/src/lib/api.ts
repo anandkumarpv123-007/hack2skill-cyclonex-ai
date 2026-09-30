@@ -72,10 +72,19 @@ export async function generateAdvisory(
 export async function fetchNearbyShelters(
   lat: number,
   lon: number,
-  limit: number = 4
+  limit: number = 4,
+  cycloneId?: string
 ): Promise<{ nearest_shelters: ShelterCandidate[] }> {
+  const query = new URLSearchParams({
+    lat: lat.toString(),
+    lon: lon.toString(),
+    limit: limit.toString(),
+  });
+  if (cycloneId) {
+    query.set("cyclone_id", cycloneId);
+  }
   const res = await fetch(
-    `${API_BASE_URL}/api/v1/infrastructure/shelters/nearby?lat=${lat}&lon=${lon}&limit=${limit}`,
+    `${API_BASE_URL}/api/v1/infrastructure/shelters/nearby?${query.toString()}`,
     { cache: "no-store" }
   );
   if (!res.ok) throw new Error("Failed to fetch nearby shelters");

@@ -84,7 +84,7 @@ export default function HomePage() {
 
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-900 border border-slate-800 text-xs text-slate-300">
             <Languages className="w-3.5 h-3.5 text-cyan-400" />
-            <span>English • తెలుగు (Telugu)</span>
+            <span>Bilingual: English + తెలుగు (Telugu)</span>
           </div>
         </div>
       </header>
@@ -287,7 +287,7 @@ export default function HomePage() {
         <section className="p-6 rounded-xl bg-slate-900/60 border border-slate-800 space-y-4">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            Resume-Grade Engineering Guarantees
+            Engineering Guarantees
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300">
             <div className="p-4 rounded-lg bg-slate-950/70 border border-slate-800/80 space-y-1.5">

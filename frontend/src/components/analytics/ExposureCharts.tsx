@@ -3,6 +3,7 @@
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
@@ -29,21 +30,21 @@ export default function ExposureCharts({
   const exposureData = [
     {
       category: "Hospitals",
-      "64-kt Swath": exposure.hospitals_at_risk.in_64kt,
-      "50-kt Swath": exposure.hospitals_at_risk.in_50kt,
-      "Surge Zone": exposure.hospitals_at_risk.in_surge,
+      "64-kt Hurricane Swath": exposure.hospitals_at_risk.in_64kt,
+      "50-kt Storm Swath": exposure.hospitals_at_risk.in_50kt,
+      "Surge Inundation Zone": exposure.hospitals_at_risk.in_surge,
     },
     {
       category: "Shelters",
-      "64-kt Swath": exposure.shelters_at_risk.in_64kt,
-      "50-kt Swath": exposure.shelters_at_risk.in_50kt,
-      "Surge Zone": exposure.shelters_at_risk.in_surge,
+      "64-kt Hurricane Swath": exposure.shelters_at_risk.in_64kt,
+      "50-kt Storm Swath": exposure.shelters_at_risk.in_50kt,
+      "Surge Inundation Zone": exposure.shelters_at_risk.in_surge,
     },
     {
       category: "Substations",
-      "64-kt Swath": exposure.substations_at_risk.in_64kt,
-      "50-kt Swath": exposure.substations_at_risk.in_50kt,
-      "Surge Zone": exposure.substations_at_risk.in_surge,
+      "64-kt Hurricane Swath": exposure.substations_at_risk.in_64kt,
+      "50-kt Storm Swath": exposure.substations_at_risk.in_50kt,
+      "Surge Inundation Zone": exposure.substations_at_risk.in_surge,
     },
   ];
 
@@ -52,6 +53,7 @@ export default function ExposureCharts({
     name: d.district,
     CVI: d.cvi_score,
     fill: d.risk_color,
+    level: d.risk_level,
   }));
 
   // 3. Track Progression Time-series
@@ -77,7 +79,7 @@ export default function ExposureCharts({
           Point assets intersected with 64-kt hurricane, 50-kt storm, and scenario surge inundation envelopes.
         </p>
 
-        <div className="h-[240px] w-full">
+        <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={exposureData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -87,15 +89,15 @@ export default function ExposureCharts({
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", fontSize: "12px" }}
               />
               <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
-              <Bar dataKey="64-kt Swath" fill="#ef4444" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="50-kt Swath" fill="#f97316" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Surge Zone" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="64-kt Hurricane Swath" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="50-kt Storm Swath" fill="#f97316" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Surge Inundation Zone" fill="#06b6d4" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* District CVI Ranking Chart */}
+      {/* District CVI Ranking Chart with Dynamic Colors and Numeric Labels */}
       <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-sm text-slate-200">
@@ -106,23 +108,41 @@ export default function ExposureCharts({
           </span>
         </div>
         <p className="text-xs text-slate-400">
-          Calculated from wind speed, inundation fraction, elevation deficit, and shelter capacity.
+          Calculated dynamically from sustained wind, surge reach, elevation deficit, and shelter mitigation.
         </p>
 
-        <div className="h-[240px] w-full">
+        <div className="h-[250px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={cviData}
               layout="vertical"
-              margin={{ top: 10, right: 20, left: 10, bottom: 0 }}
+              margin={{ top: 5, right: 40, left: 10, bottom: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis type="number" domain={[0, 1]} stroke="#94a3b8" fontSize={11} />
-              <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} width={80} />
+              <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} width={85} />
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", fontSize: "12px" }}
+                formatter={(value: any, name: any, item: any) => [
+                  `${value} (${item.payload.level})`,
+                  "CVI Score",
+                ]}
               />
-              <Bar dataKey="CVI" radius={[0, 4, 4, 0]} />
+              <Bar
+                dataKey="CVI"
+                radius={[0, 4, 4, 0]}
+                label={{
+                  position: "right",
+                  fill: "#cbd5e1",
+                  fontSize: 10,
+                  fontFamily: "monospace",
+                  formatter: (val: any) => (typeof val === "number" ? val.toFixed(3) : val),
+                }}
+              >
+                {cviData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -172,6 +192,7 @@ export default function ExposureCharts({
                   name="Central Pressure (hPa)"
                   stroke="#f43f5e"
                   strokeWidth={2}
+                  strokeDasharray="4 4"
                   dot={{ r: 3 }}
                 />
               </LineChart>

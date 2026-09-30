@@ -4,6 +4,11 @@ import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
+// Configure MapLibre Web Worker to load from static public directory
+if (typeof window !== "undefined") {
+  maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
+}
+
 interface MapContainerProps {
   spatialLayers: {
     track_line?: any;
@@ -30,28 +35,28 @@ export default function MapContainer({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
+    // Use ESRI World Dark Gray Canvas: High-reliability, keyless, dark tactical cartography
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: {
         version: 8,
         sources: {
-          osm: {
+          esriDark: {
             type: "raster",
             tiles: [
-              "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-              "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+              "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
             ],
             tileSize: 256,
-            attribution: "© OpenStreetMap contributors, © CARTO",
+            attribution: "© Esri, HERE, Garmin, © OpenStreetMap contributors",
           },
         },
         layers: [
           {
-            id: "osm-layer",
+            id: "esri-dark-layer",
             type: "raster",
-            source: "osm",
+            source: "esriDark",
             minzoom: 0,
-            maxzoom: 19,
+            maxzoom: 18,
           },
         ],
       },
@@ -73,24 +78,45 @@ export default function MapContainer({
     };
   }, []);
 
-  // Update map layers whenever spatialLayers changes
+  // Update view center when scenario changes
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: center,
+        zoom: zoom,
+        speed: 1.2,
+        curve: 1.4,
+        essential: true,
+      });
+    }
+  }, [center[0], center[1], zoom]);
+
+  // Update map layers whenever spatialLayers or infrastructureAssets change
   useEffect(() => {
     if (!mapRef.current || !mapRef.current.isStyleLoaded()) return;
     updateLayers(mapRef.current);
   }, [spatialLayers, infrastructureAssets]);
 
   const updateLayers = (map: maplibregl.Map) => {
-    if (!spatialLayers) return;
-
     // Helper to safely remove layer and source
     const clearLayer = (id: string) => {
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
     };
 
-    // 1. Swath 34kt (Yellow)
+    // Close any open popups and remove previous markers
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    if (!spatialLayers) return;
+
+    // 1. Swath 34kt (Yellow Gale Swath)
     clearLayer("swath-34-layer");
-    if (spatialLayers.swath_34kt) {
+    if (
+      spatialLayers.swath_34kt &&
+      spatialLayers.swath_34kt.coordinates &&
+      spatialLayers.swath_34kt.coordinates.length > 0
+    ) {
       map.addSource("swath-34-layer", {
         type: "geojson",
         data: { type: "Feature", geometry: spatialLayers.swath_34kt, properties: {} },
@@ -99,13 +125,21 @@ export default function MapContainer({
         id: "swath-34-layer",
         type: "fill",
         source: "swath-34-layer",
-        paint: { "fill-color": "#eab308", "fill-opacity": 0.2, "fill-outline-color": "#ca8a04" },
+        paint: {
+          "fill-color": "#eab308",
+          "fill-opacity": 0.22,
+          "fill-outline-color": "#ca8a04",
+        },
       });
     }
 
-    // 2. Swath 50kt (Orange)
+    // 2. Swath 50kt (Orange Storm Swath)
     clearLayer("swath-50-layer");
-    if (spatialLayers.swath_50kt) {
+    if (
+      spatialLayers.swath_50kt &&
+      spatialLayers.swath_50kt.coordinates &&
+      spatialLayers.swath_50kt.coordinates.length > 0
+    ) {
       map.addSource("swath-50-layer", {
         type: "geojson",
         data: { type: "Feature", geometry: spatialLayers.swath_50kt, properties: {} },
@@ -114,13 +148,21 @@ export default function MapContainer({
         id: "swath-50-layer",
         type: "fill",
         source: "swath-50-layer",
-        paint: { "fill-color": "#f97316", "fill-opacity": 0.3, "fill-outline-color": "#ea580c" },
+        paint: {
+          "fill-color": "#f97316",
+          "fill-opacity": 0.35,
+          "fill-outline-color": "#ea580c",
+        },
       });
     }
 
-    // 3. Swath 64kt (Red / Hurricane)
+    // 3. Swath 64kt (Red Hurricane Swath - Only for >= 118.5 km/h)
     clearLayer("swath-64-layer");
-    if (spatialLayers.swath_64kt) {
+    if (
+      spatialLayers.swath_64kt &&
+      spatialLayers.swath_64kt.coordinates &&
+      spatialLayers.swath_64kt.coordinates.length > 0
+    ) {
       map.addSource("swath-64-layer", {
         type: "geojson",
         data: { type: "Feature", geometry: spatialLayers.swath_64kt, properties: {} },
@@ -129,28 +171,48 @@ export default function MapContainer({
         id: "swath-64-layer",
         type: "fill",
         source: "swath-64-layer",
-        paint: { "fill-color": "#ef4444", "fill-opacity": 0.45, "fill-outline-color": "#b91c1c" },
+        paint: {
+          "fill-color": "#ef4444",
+          "fill-opacity": 0.48,
+          "fill-outline-color": "#b91c1c",
+        },
       });
     }
 
     // 4. Surge Inundation Zone (Cyan / Sea water)
     clearLayer("surge-layer");
-    if (spatialLayers.surge_inundation_zone) {
+    if (
+      spatialLayers.surge_inundation_zone &&
+      spatialLayers.surge_inundation_zone.coordinates &&
+      spatialLayers.surge_inundation_zone.coordinates.length > 0
+    ) {
       map.addSource("surge-layer", {
         type: "geojson",
-        data: { type: "Feature", geometry: spatialLayers.surge_inundation_zone, properties: {} },
+        data: {
+          type: "Feature",
+          geometry: spatialLayers.surge_inundation_zone,
+          properties: {},
+        },
       });
       map.addLayer({
         id: "surge-layer",
         type: "fill",
         source: "surge-layer",
-        paint: { "fill-color": "#06b6d4", "fill-opacity": 0.55, "fill-outline-color": "#0891b2" },
+        paint: {
+          "fill-color": "#06b6d4",
+          "fill-opacity": 0.55,
+          "fill-outline-color": "#0891b2",
+        },
       });
     }
 
     // 5. Track Line
     clearLayer("track-line-layer");
-    if (spatialLayers.track_line) {
+    if (
+      spatialLayers.track_line &&
+      spatialLayers.track_line.coordinates &&
+      spatialLayers.track_line.coordinates.length > 0
+    ) {
       map.addSource("track-line-layer", {
         type: "geojson",
         data: { type: "Feature", geometry: spatialLayers.track_line, properties: {} },
@@ -159,47 +221,96 @@ export default function MapContainer({
         id: "track-line-layer",
         type: "line",
         source: "track-line-layer",
-        paint: { "line-color": "#38bdf8", "line-width": 3, "line-dasharray": [2, 2] },
+        paint: {
+          "line-color": "#38bdf8",
+          "line-width": 3,
+          "line-dasharray": [2, 2],
+        },
       });
     }
 
     // 6. Infrastructure Markers
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-
-    infrastructureAssets.forEach((asset) => {
-      const coords = asset.geometry?.coordinates;
-      if (!coords || asset.geometry.type !== "Point") return;
+    infrastructureAssets.forEach((rawAsset) => {
+      // Support both GeoJSON Feature and direct object formats
+      const props = rawAsset.properties || rawAsset;
+      const geom = rawAsset.geometry || rawAsset;
+      const coords = geom.coordinates;
+      if (!coords || geom.type !== "Point") return;
 
       const el = document.createElement("div");
-      el.className = "flex items-center justify-center cursor-pointer transition-transform hover:scale-125";
-      
-      const isHospital = asset.type === "hospital";
-      const isShelter = asset.type === "shelter";
+      el.className =
+        "flex items-center justify-center cursor-pointer transition-transform hover:scale-125 select-none";
 
-      const bgColor = isHospital ? "#ef4444" : isShelter ? "#10b981" : "#f59e0b";
-      const iconText = isHospital ? "🏥" : isShelter ? "🏠" : "⚡";
+      const assetType = (props.type || rawAsset.type || "asset").toLowerCase();
+      const isHospital = assetType.includes("hospital");
+      const isShelter = assetType.includes("shelter");
+      const isSubstation =
+        assetType.includes("substation") || assetType.includes("power");
+
+      const bgColor = isHospital
+        ? "#ef4444"
+        : isShelter
+        ? "#10b981"
+        : isSubstation
+        ? "#f59e0b"
+        : "#38bdf8";
+
+      const iconText = isHospital
+        ? "🏥"
+        : isShelter
+        ? "🏠"
+        : isSubstation
+        ? "⚡"
+        : "📍";
+
+      const categoryLabel = isHospital
+        ? "Hospital / Medical Center"
+        : isShelter
+        ? "Cyclone Shelter (MPCS)"
+        : isSubstation
+        ? "Power Grid Substation"
+        : "Critical Facility";
 
       el.innerHTML = `
-        <div style="background-color: ${bgColor}; width: 26px; height: 26px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 13px; box-shadow: 0 0 10px rgba(0,0,0,0.5);">
+        <div style="background-color: ${bgColor}; width: 28px; height: 28px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 0 10px rgba(0,0,0,0.6);">
           ${iconText}
         </div>
       `;
 
+      const assetName =
+        props.name || rawAsset.name || "Critical Infrastructure Facility";
+      const district =
+        props.district || rawAsset.district || "Coastal District";
+      const beds = props.beds;
+      const capacity = props.capacity;
+      const elevation = props.elevation_m;
+      const voltage = props.voltage_kv;
+      const hazardLevel = props.hazard_level || rawAsset.hazard_level;
+
       const popupContent = `
-        <div style="color: #0f172a; font-family: sans-serif; font-size: 12px; padding: 4px;">
-          <strong style="display: block; font-size: 13px; margin-bottom: 2px;">${asset.name}</strong>
-          <div>Category: <b>${asset.type?.toUpperCase()}</b></div>
-          <div>District: <b>${asset.district}</b></div>
-          ${asset.properties?.beds ? `<div>Beds: <b>${asset.properties.beds}</b></div>` : ""}
-          ${asset.properties?.capacity ? `<div>Capacity: <b>${asset.properties.capacity} persons</b></div>` : ""}
-          ${asset.properties?.elevation_m ? `<div>Elevation: <b>${asset.properties.elevation_m}m MSL</b></div>` : ""}
+        <div style="color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; padding: 6px; min-width: 190px;">
+          <div style="font-weight: 700; font-size: 13px; color: #0f172a; margin-bottom: 4px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px;">
+            ${iconText} ${assetName}
+          </div>
+          <div style="margin-bottom: 2px;">Category: <b style="color: #1e293b;">${categoryLabel}</b></div>
+          <div style="margin-bottom: 2px;">District: <b style="color: #1e293b;">${district}</b></div>
+          ${beds ? `<div style="margin-bottom: 2px;">Bed Capacity: <b style="color: #1e293b;">${beds} beds</b></div>` : ""}
+          ${capacity ? `<div style="margin-bottom: 2px;">Shelter Capacity: <b style="color: #1e293b;">${capacity} persons</b></div>` : ""}
+          ${elevation !== undefined ? `<div style="margin-bottom: 2px;">Elevation: <b style="color: #1e293b;">${elevation}m MSL</b></div>` : ""}
+          ${voltage ? `<div style="margin-bottom: 2px;">Grid Voltage: <b style="color: #1e293b;">${voltage} kV</b></div>` : ""}
+          ${hazardLevel ? `<div style="margin-top: 4px; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 10px; text-transform: uppercase; display: inline-block; background-color: ${hazardLevel === "extreme" ? "#fee2e2; color: #991b1b;" : hazardLevel === "high" ? "#ffedd5; color: #9a3412;" : "#fef9c3; color: #854d0e;"}">Hazard: ${hazardLevel}</div>` : ""}
         </div>
       `;
 
+      const popup = new maplibregl.Popup({
+        offset: 15,
+        closeButton: true,
+        closeOnClick: false,
+      }).setHTML(popupContent);
+
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([coords[0], coords[1]])
-        .setPopup(new maplibregl.Popup({ offset: 15 }).setHTML(popupContent))
+        .setPopup(popup)
         .addTo(map);
 
       markersRef.current.push(marker);
@@ -211,14 +322,16 @@ export default function MapContainer({
       <div ref={mapContainerRef} className="w-full h-full" />
 
       {/* Map Legend Overlay */}
-      <div className="absolute bottom-4 left-4 z-10 p-3 rounded-lg bg-slate-950/90 border border-slate-800 backdrop-blur text-xs space-y-1.5 shadow-lg">
+      <div className="absolute bottom-4 left-4 z-10 p-3 rounded-lg bg-slate-950/90 border border-slate-800 backdrop-blur text-xs space-y-1.5 shadow-lg max-w-xs">
         <div className="font-bold text-slate-200 text-[11px] uppercase tracking-wider mb-1">
           Hazard & Spatial Legend
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 rounded bg-red-500/60 border border-red-500" />
-          <span className="text-slate-300">64-kt Hurricane Swath (≥119 km/h)</span>
-        </div>
+        {spatialLayers?.swath_64kt?.coordinates && (
+          <div className="flex items-center gap-2">
+            <span className="w-3.5 h-3.5 rounded bg-red-500/60 border border-red-500" />
+            <span className="text-slate-300">64-kt Hurricane Swath (≥119 km/h)</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <span className="w-3.5 h-3.5 rounded bg-orange-500/50 border border-orange-500" />
           <span className="text-slate-300">50-kt Storm Swath (≥93 km/h)</span>

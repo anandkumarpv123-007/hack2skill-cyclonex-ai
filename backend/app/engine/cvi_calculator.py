@@ -12,11 +12,11 @@ from typing import Dict, Any, List
 
 
 DEFAULT_WEIGHTS = {
-    "wind": 0.30,       # w_w: Peak sustained wind speed exposure
-    "surge": 0.30,      # w_s: Inundation area fraction
+    "wind": 0.35,       # w_w: Peak sustained wind speed exposure
+    "surge": 0.35,      # w_s: Inundation area fraction
     "elevation": 0.15,  # w_e: Elevation deficit (1 - normalized elevation)
     "infra": 0.15,      # w_i: Critical infrastructure asset density
-    "shelter": 0.10,    # w_c: Cyclone shelter capacity mitigation factor
+    "shelter": 0.05,    # w_c: Cyclone shelter capacity mitigation factor
 }
 
 
@@ -33,19 +33,19 @@ def calculate_district_cvi(
     Computes deterministic Composite Vulnerability Index for an administrative district.
 
     Inputs are normalized strictly to [0.0, 1.0]:
-      - V_wind: min(1.0, max_wind_kmh / 180.0)
+      - V_wind: min(1.0, max_wind_kmh / 170.0)
       - S_surge: clamp(surge_fraction, 0.0, 1.0)
       - E_elevation: min(1.0, max(0.0, mean_elevation_m / 30.0)) -> Risk is (1 - E)
-      - I_infra: min(1.0, critical_assets_count / 20.0)
+      - I_infra: min(1.0, critical_assets_count / 15.0)
       - C_shelter: clamp(shelter_capacity_ratio, 0.0, 1.0)
     """
     w = weights or DEFAULT_WEIGHTS
 
-    v_wind = min(1.0, max(0.0, max_wind_kmh / 180.0))
+    v_wind = min(1.0, max(0.0, max_wind_kmh / 170.0))
     s_surge = min(1.0, max(0.0, surge_fraction))
     e_norm = min(1.0, max(0.0, mean_elevation_m / 30.0))
     e_risk = 1.0 - e_norm
-    i_infra = min(1.0, max(0.0, critical_assets_count / 20.0))
+    i_infra = min(1.0, max(0.0, critical_assets_count / 15.0))
     c_shelter = min(1.0, max(0.0, shelter_capacity_ratio))
 
     # Compute weighted sum
@@ -60,7 +60,7 @@ def calculate_district_cvi(
     # Clamp bounded result between 0.0 and 1.0
     cvi_score = round(max(0.0, min(1.0, raw_cvi)), 3)
 
-    # Classify Risk Level
+    # Classify Risk Level and Directive Severity
     if cvi_score >= 0.80:
         risk_level = "Extreme"
         risk_color = "#ef4444" # Red

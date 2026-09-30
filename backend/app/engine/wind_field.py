@@ -33,6 +33,11 @@ def _create_elliptical_buffer(lon: float, lat: float, radius_km: float, num_pts:
     return Polygon(np.column_stack((x, y)))
 
 
+THRESHOLD_34KT_KMH = 63.0   # 34-kt Gale (~63 km/h)
+THRESHOLD_50KT_KMH = 92.6   # 50-kt Storm (~93 km/h)
+THRESHOLD_64KT_KMH = 118.5  # 64-kt Hurricane (~119 km/h)
+
+
 def generate_wind_swaths(waypoints: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Computes continuous 34-kt, 50-kt, and 64-kt wind hazard swaths from waypoint data.
@@ -58,10 +63,21 @@ def generate_wind_swaths(waypoints: List[Dict[str, Any]]) -> Dict[str, Any]:
         lon = float(wp["lon"])
         wind_kmh = float(wp.get("max_wind_kmh", 80.0))
 
-        # Default radii heuristics (in km) if not explicitly present in bulletin
-        r34 = float(wp.get("r34_km", max(0.0, (wind_kmh / 120.0) * 180.0)))
-        r50 = float(wp.get("r50_km", max(0.0, (wind_kmh / 120.0) * 110.0 if wind_kmh >= 90 else 0.0)))
-        r64 = float(wp.get("r64_km", max(0.0, (wind_kmh / 120.0) * 60.0 if wind_kmh >= 118 else 0.0)))
+        # Strict physical thresholds: Radii only exist if storm reaches threshold
+        if wind_kmh < THRESHOLD_34KT_KMH:
+            r34 = 0.0
+        else:
+            r34 = float(wp.get("r34_km") if wp.get("r34_km") is not None else ((wind_kmh / 120.0) * 180.0))
+
+        if wind_kmh < THRESHOLD_50KT_KMH:
+            r50 = 0.0
+        else:
+            r50 = float(wp.get("r50_km") if wp.get("r50_km") is not None else ((wind_kmh / 120.0) * 110.0))
+
+        if wind_kmh < THRESHOLD_64KT_KMH:
+            r64 = 0.0
+        else:
+            r64 = float(wp.get("r64_km") if wp.get("r64_km") is not None else ((wind_kmh / 120.0) * 60.0))
 
         buf34 = _create_elliptical_buffer(lon, lat, r34)
         buf50 = _create_elliptical_buffer(lon, lat, r50)
@@ -81,9 +97,20 @@ def generate_wind_swaths(waypoints: List[Dict[str, Any]]) -> Dict[str, Any]:
             prev_lon = float(prev_wp["lon"])
             prev_wind = float(prev_wp.get("max_wind_kmh", 80.0))
 
-            prev_r34 = float(prev_wp.get("r34_km", max(0.0, (prev_wind / 120.0) * 180.0)))
-            prev_r50 = float(prev_wp.get("r50_km", max(0.0, (prev_wind / 120.0) * 110.0 if prev_wind >= 90 else 0.0)))
-            prev_r64 = float(prev_wp.get("r64_km", max(0.0, (prev_wind / 120.0) * 60.0 if prev_wind >= 118 else 0.0)))
+            if prev_wind < THRESHOLD_34KT_KMH:
+                prev_r34 = 0.0
+            else:
+                prev_r34 = float(prev_wp.get("r34_km") if prev_wp.get("r34_km") is not None else ((prev_wind / 120.0) * 180.0))
+
+            if prev_wind < THRESHOLD_50KT_KMH:
+                prev_r50 = 0.0
+            else:
+                prev_r50 = float(prev_wp.get("r50_km") if prev_wp.get("r50_km") is not None else ((prev_wind / 120.0) * 110.0))
+
+            if prev_wind < THRESHOLD_64KT_KMH:
+                prev_r64 = 0.0
+            else:
+                prev_r64 = float(prev_wp.get("r64_km") if prev_wp.get("r64_km") is not None else ((prev_wind / 120.0) * 60.0))
 
             prev_buf34 = _create_elliptical_buffer(prev_lon, prev_lat, prev_r34)
             prev_buf50 = _create_elliptical_buffer(prev_lon, prev_lat, prev_r50)

@@ -60,10 +60,10 @@ def evaluate_asset_exposure(
 
         # Handle Point Infrastructure (Hospitals, Shelters, Substations)
         if isinstance(geom, Point):
-            in_64 = bool(poly_64 and poly_64.contains(geom))
-            in_50 = bool(poly_50 and poly_50.contains(geom))
-            in_34 = bool(poly_34 and poly_34.contains(geom))
-            in_surge = bool(poly_surge and poly_surge.contains(geom))
+            in_64 = bool(poly_64 and not poly_64.is_empty and poly_64.contains(geom))
+            in_50 = bool(poly_50 and not poly_50.is_empty and poly_50.contains(geom))
+            in_34 = bool(poly_34 and not poly_34.is_empty and poly_34.contains(geom))
+            in_surge = bool(poly_surge and not poly_surge.is_empty and poly_surge.contains(geom))
 
             asset_summary = {
                 "id": item.get("id"),
@@ -97,10 +97,10 @@ def evaluate_asset_exposure(
 
         # Handle Line Infrastructure (Roads / Evacuation Corridors)
         elif isinstance(geom, (LineString, MultiPolygon)):
-            if poly_64 and poly_64.intersects(geom):
+            if poly_64 and not poly_64.is_empty and poly_64.intersects(geom):
                 intersection_line = poly_64.intersection(geom)
                 road_km_64 += intersection_line.length * KM_PER_DEGREE
-            if poly_surge and poly_surge.intersects(geom):
+            if poly_surge and not poly_surge.is_empty and poly_surge.intersects(geom):
                 intersection_line = poly_surge.intersection(geom)
                 road_km_surge += intersection_line.length * KM_PER_DEGREE
 

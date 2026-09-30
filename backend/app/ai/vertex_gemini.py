@@ -91,15 +91,55 @@ class GroundedAdvisoryEngine:
         ai_response_text = self._call_vertex_gemini(user_prompt)
         is_live_ai = ai_response_text is not None
 
-        # Deterministic Grounded Synthesis (Used as primary fallback or live validation)
-        authority_guidance_en = (
-            f"TACTICAL INCIDENT COMMAND DIRECTIVE: {cyclone_name.upper()} ({category})\n"
-            f"1. Landfall Projection: {landfall_target} with peak sustained winds of {peak_wind} km/h and scenario coastal surge of {surge_h} meters.\n"
-            f"2. Priority District: {top_district} exhibits the highest Composite Vulnerability Index ({top_cvi_score}). Execute mandatory coastal evacuation immediately.\n"
-            f"3. Critical Hospital Contingency: {hosp_64} hospital(s) within the 64-kt hurricane swath and {hosp_surge} hospital(s) facing coastal surge exposure. Mandate 72-hour diesel backup generator refueling and clear lower-level wards.\n"
-            f"4. Evacuation Road Inundation: {roads_surge_km} km of coastal highways face severe scenario inundation. Close vulnerable sectors on NH-216 and divert relief transport to inland arterial corridors.\n"
-            f"5. Shelter Safety Status: {shelter_surge} shelter(s) are compromised by surge inundation and must remain locked. Direct evacuees strictly to certified elevated inland facilities."
-        )
+        # Grounded Action Severity Mapping from Deterministic CVI Score
+        if top_cvi_score >= 0.80:
+            action_directive = "Execute IMMEDIATE MANDATORY COASTAL EVACUATION."
+        elif top_cvi_score >= 0.60:
+            action_directive = "PREPARE SHELTERS AND EVACUATE VULNERABLE POPULATIONS."
+        elif top_cvi_score >= 0.35:
+            action_directive = "RESTRICT NON-ESSENTIAL MOVEMENT AND SECURE CRITICAL ASSETS."
+        else:
+            action_directive = "MONITOR INCIDENT BULLETINS AND MAINTAIN WATCH."
+
+        # Dynamically formulate truthful, grounded directives omitting false 0-count closures
+        directives = [
+            f"TACTICAL INCIDENT COMMAND DIRECTIVE: {cyclone_name.upper()} ({category})",
+            f"1. Landfall Projection: {landfall_target} with peak sustained winds of {peak_wind} km/h and scenario coastal surge of {surge_h} meters.",
+            f"2. Priority District: {top_district} exhibits the highest Composite Vulnerability Index ({top_cvi_score}). {action_directive}",
+        ]
+
+        if hosp_64 > 0 or hosp_surge > 0:
+            directives.append(
+                f"3. Critical Hospital Contingency: {hosp_64} hospital(s) within the 64-kt hurricane swath and {hosp_surge} hospital(s) facing coastal surge exposure. Mandate 72-hour diesel backup generator refueling and clear ground-floor wards."
+            )
+        elif hosp_50 > 0:
+            directives.append(
+                f"3. Critical Hospital Contingency: {hosp_50} hospital(s) within the 50-kt storm wind swath. Ensure emergency trauma units have uninterrupted auxiliary power."
+            )
+        else:
+            directives.append(
+                "3. Hospital Readiness: Regional medical facilities outside direct hazard cones are placed on standby to receive potential transfers."
+            )
+
+        if roads_surge_km > 0:
+            directives.append(
+                f"4. Evacuation Road Inundation: {roads_surge_km} km of coastal highways face scenario inundation. Close compromised coastal sectors immediately and divert emergency relief transport to elevated arterial corridors."
+            )
+        else:
+            directives.append(
+                "4. Evacuation Route Status: Major highway corridors currently remain clear of scenario surge inundation. Maintain traffic flow for emergency logistics."
+            )
+
+        if shelter_surge > 0:
+            directives.append(
+                f"5. Shelter Safety Status: {shelter_surge} coastal shelter(s) are compromised by active scenario surge inundation and must remain locked. Direct evacuees strictly to elevated safe inland facilities."
+            )
+        else:
+            directives.append(
+                "5. Shelter Safety Status: Registered multi-purpose cyclone shelters are cleared above scenario surge levels. Mobilize emergency supplies to receive evacuees."
+            )
+
+        authority_guidance_en = "\n".join(directives)
 
         citizen_advisory_en = (
             f"EMERGENCY CYCLONE WARNING: {cyclone_name}\n"
@@ -121,7 +161,7 @@ class GroundedAdvisoryEngine:
 
         return {
             "is_live_ai": is_live_ai,
-            "ai_provider": "VERTEX_AI_GEMINI_3_7_FLASH" if is_live_ai else "LOCAL_DETERMINISTIC_GROUNDED_SYNTHESIZER",
+            "ai_provider": "VERTEX_AI_GEMINI_3_7_FLASH" if is_live_ai else "Deterministic Grounded Synthesis (Vertex AI Offline)",
             "model": self.model_name if is_live_ai else "deterministic-rule-grounding-engine",
             "grounding_integrity_verified": True,
             "metrics_cited": {

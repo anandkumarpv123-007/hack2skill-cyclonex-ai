@@ -6,31 +6,22 @@ import {
   ShieldAlert,
   Wind,
   Waves,
-  MapPin,
   Building2,
   Zap,
   Navigation,
   FileDown,
   RefreshCw,
+  MapPin,
+  FileText,
+  CheckCircle,
   AlertTriangle,
   ArrowRight,
-  CheckCircle,
-  FileText,
+  Check,
 } from "lucide-react";
-import dynamic from "next/dynamic";
-
-const MapContainer = dynamic(() => import("@/components/map/MapContainer"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[520px] rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-xs text-slate-400 font-mono">
-      Initializing GPU-Accelerated Vector Map (WebGL)...
-    </div>
-  ),
-});
+import MapContainer from "@/components/map/MapContainer";
 import ExposureCharts from "@/components/analytics/ExposureCharts";
 import {
   fetchBenchmarks,
-  fetchActiveCyclone,
   fetchCycloneById,
   evaluateRisk,
   generateAdvisory,
@@ -51,26 +42,39 @@ export default function AuthorityDashboardPage() {
   const [infrastructureAssets, setInfrastructureAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [exportToast, setExportToast] = useState<string | null>(null);
+
+  // Load benchmarks list on mount
+  useEffect(() => {
+    async function init() {
+      try {
+        const benchList = await fetchBenchmarks();
+        setBenchmarks(benchList);
+      } catch (err: any) {
+        console.error("Failed to load benchmarks:", err);
+      }
+    }
+    init();
+  }, []);
 
   const loadData = async (scenarioId: string) => {
     setLoading(true);
     setError(null);
     try {
-      const [benchmarkList, track, riskRes, advisoryRes, infraRes] = await Promise.all([
-        fetchBenchmarks(),
+      const [track, evaluation, advRes, assetsData] = await Promise.all([
         fetchCycloneById(scenarioId),
         evaluateRisk(scenarioId),
         generateAdvisory(scenarioId),
         fetchInfrastructureGeoJSON(),
       ]);
 
-      setBenchmarks(benchmarkList);
       setCyclone(track);
-      setRiskData(riskRes);
-      setAdvisory(advisoryRes.advisory);
-      setInfrastructureAssets(infraRes.features || []);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Error loading authority dashboard data");
+      setRiskData(evaluation);
+      setAdvisory(advRes.advisory);
+      setInfrastructureAssets(assetsData.features || []);
+    } catch (err: any) {
+      console.error("Dashboard data load error:", err);
+      setError(err.message || "Failed to load authority operational dataset.");
     } finally {
       setLoading(false);
     }
@@ -82,16 +86,22 @@ export default function AuthorityDashboardPage() {
 
   const exportIncidentMatrix = () => {
     if (!riskData) return;
+    const filename = `CYCLONEX_Incident_Matrix_${selectedScenarioId}.json`;
     const blob = new Blob([JSON.stringify(riskData, null, 2)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `CYCLONEX_Incident_Matrix_${selectedScenarioId}.json`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+
+    setExportToast(`✓ Incident matrix exported successfully as ${filename}`);
+    setTimeout(() => setExportToast(null), 4000);
   };
+
+  const has64kt = riskData && riskData.cyclone_metadata.peak_wind_kmh >= 118.5;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -120,7 +130,7 @@ export default function AuthorityDashboardPage() {
             <select
               value={selectedScenarioId}
               onChange={(e) => setSelectedScenarioId(e.target.value)}
-              className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-cyan-500 focus:outline-none"
+              className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-cyan-500 focus:outline-none cursor-pointer"
             >
               {benchmarks.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -133,16 +143,16 @@ export default function AuthorityDashboardPage() {
           <button
             onClick={() => loadData(selectedScenarioId)}
             disabled={loading}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 border border-slate-700 transition"
             title="Reload data"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-cyan-400" : ""}`} />
           </button>
 
           <button
             onClick={exportIncidentMatrix}
             disabled={!riskData}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-950 hover:bg-cyan-900 border border-cyan-700 text-cyan-300 text-xs font-medium"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-950 hover:bg-cyan-900 border border-cyan-700 text-cyan-300 text-xs font-medium transition"
           >
             <FileDown className="w-3.5 h-3.5" />
             <span>Export JSON Matrix</span>
@@ -150,7 +160,7 @@ export default function AuthorityDashboardPage() {
 
           <Link
             href="/citizen"
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-700 text-emerald-300 text-xs font-medium"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-700 text-emerald-300 text-xs font-medium transition"
           >
             <span>Citizen Safety View</span>
             <ArrowRight className="w-3 h-3" />
@@ -160,6 +170,22 @@ export default function AuthorityDashboardPage() {
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-6 space-y-6">
+        {/* Floating Export Success Notification Toast */}
+        {exportToast && (
+          <div className="p-3 rounded-xl bg-emerald-950/90 border border-emerald-700 text-emerald-200 text-xs flex items-center justify-between gap-2 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-400" />
+              <span className="font-mono font-medium">{exportToast}</span>
+            </div>
+            <button
+              onClick={() => setExportToast(null)}
+              className="text-emerald-400 hover:text-white text-xs px-2 py-0.5 rounded"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {error && (
           <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" />
@@ -198,7 +224,7 @@ export default function AuthorityDashboardPage() {
           </div>
         )}
 
-        {/* Key Operational KPI Cards */}
+        {/* Key Operational KPI Cards with Strict Threshold-Aware Reporting */}
         {riskData && (
           <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
@@ -210,7 +236,9 @@ export default function AuthorityDashboardPage() {
                 {riskData.cyclone_metadata.peak_wind_kmh}
                 <span className="text-xs font-normal text-slate-400 ml-1">km/h</span>
               </div>
-              <span className="text-[10px] text-slate-500 block">64-kt Hurricane Core</span>
+              <span className="text-[10px] text-slate-500 block">
+                {has64kt ? "64-kt Hurricane Core (≥119 km/h)" : "50-kt Storm Force (Sub-Hurricane)"}
+              </span>
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
@@ -244,12 +272,16 @@ export default function AuthorityDashboardPage() {
                 <Building2 className="w-4 h-4 text-rose-400" />
               </div>
               <div className="text-xl font-black text-rose-400 font-mono">
-                {riskData.exposure_summary.hospitals_at_risk.in_64kt}
+                {has64kt
+                  ? riskData.exposure_summary.hospitals_at_risk.in_64kt
+                  : riskData.exposure_summary.hospitals_at_risk.in_50kt}
                 <span className="text-xs font-normal text-slate-400 ml-1">
                   ({riskData.exposure_summary.hospitals_at_risk.in_surge} surge)
                 </span>
               </div>
-              <span className="text-[10px] text-slate-500 block">64-kt Hurricane Swath</span>
+              <span className="text-[10px] text-slate-500 block">
+                {has64kt ? "64-kt Hurricane Swath" : "50-kt Gale/Storm Swath"}
+              </span>
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
@@ -258,10 +290,14 @@ export default function AuthorityDashboardPage() {
                 <Zap className="w-4 h-4 text-amber-400" />
               </div>
               <div className="text-xl font-black text-amber-300 font-mono">
-                {riskData.exposure_summary.substations_at_risk.in_64kt}
+                {has64kt
+                  ? riskData.exposure_summary.substations_at_risk.in_64kt
+                  : riskData.exposure_summary.substations_at_risk.in_50kt}
                 <span className="text-xs font-normal text-slate-400 ml-1">at risk</span>
               </div>
-              <span className="text-[10px] text-slate-500 block">Critical Power Grid</span>
+              <span className="text-[10px] text-slate-500 block">
+                {has64kt ? "64-kt Grid Exposure" : "50-kt Storm Grid Exposure"}
+              </span>
             </div>
 
             <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
@@ -273,7 +309,7 @@ export default function AuthorityDashboardPage() {
                 {riskData.exposure_summary.roads_at_risk_km.in_surge_inundation}
                 <span className="text-xs font-normal text-slate-400 ml-1">km</span>
               </div>
-              <span className="text-[10px] text-slate-500 block">NH-216 Coastal Sector</span>
+              <span className="text-[10px] text-slate-500 block">Coastal Highway Sector</span>
             </div>
           </section>
         )}
@@ -294,7 +330,7 @@ export default function AuthorityDashboardPage() {
             spatialLayers={riskData ? riskData.spatial_layers : null}
             infrastructureAssets={infrastructureAssets}
             center={cyclone ? [cyclone.landfall_lon, cyclone.landfall_lat] : [80.5, 15.8]}
-            zoom={7.5}
+            zoom={cyclone && cyclone.peak_wind_kmh > 150 ? 8.0 : 7.5}
           />
         </section>
 
@@ -320,8 +356,8 @@ export default function AuthorityDashboardPage() {
                 </h3>
               </div>
               <div className="flex items-center gap-2 text-xs font-mono">
-                <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-700 text-emerald-300 flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" />
+                <span className="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-cyan-300 flex items-center gap-1.5">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
                   {advisory.ai_provider}
                 </span>
                 <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
@@ -345,7 +381,7 @@ export default function AuthorityDashboardPage() {
                   Surge: {advisory.metrics_cited.surge_height_m}m
                 </span>
                 <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                  Hospitals in Swath: {advisory.metrics_cited.hospitals_at_risk}
+                  Hospitals at Risk: {advisory.metrics_cited.hospitals_at_risk}
                 </span>
                 <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
                   Road Inundation: {advisory.metrics_cited.roads_inundated_km} km
