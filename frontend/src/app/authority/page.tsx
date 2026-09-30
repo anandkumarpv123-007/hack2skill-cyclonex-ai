@@ -28,6 +28,13 @@ import {
   AlertCircle,
   Truck,
   Droplet,
+  Smartphone,
+  Volume2,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
+  Code2,
+  Send,
 } from "lucide-react";
 import MapContainer from "@/components/map/MapContainer";
 import ExposureCharts from "@/components/analytics/ExposureCharts";
@@ -60,6 +67,9 @@ export default function AuthorityDashboardPage() {
   const [exportToast, setExportToast] = useState<string | null>(null);
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>("map");
+  const [smsLang, setSmsLang] = useState<"en" | "te">("en");
+  const [showRawTechPayloads, setShowRawTechPayloads] = useState<boolean>(false);
+  const [dispatchedChannels, setDispatchedChannels] = useState<Record<string, boolean>>({});
 
   // Load benchmarks list on mount
   useEffect(() => {
@@ -123,6 +133,22 @@ export default function AuthorityDashboardPage() {
     navigator.clipboard.writeText(text);
     setCopyToast(`✓ Copied ${label} to clipboard`);
     setTimeout(() => setCopyToast(null), 3000);
+  };
+
+  const handleSimulateDispatch = (channelId?: string) => {
+    if (channelId) {
+      setDispatchedChannels((prev) => ({ ...prev, [channelId]: true }));
+      setCopyToast(`✓ Live emergency advisory dispatched to ${channelId}`);
+    } else {
+      setDispatchedChannels({
+        SDMA_COMMAND_WEBHOOK: true,
+        CELL_BROADCAST_SMS: true,
+        MUNICIPAL_SIREN_PA: true,
+        WHATSAPP_CITIZEN_BOT: true,
+      });
+      setCopyToast(`✓ All 4 emergency early-warning channels successfully triggered!`);
+    }
+    setTimeout(() => setCopyToast(null), 3500);
   };
 
   const has64kt = riskData && riskData.cyclone_metadata.peak_wind_kmh >= 118.5;
@@ -846,74 +872,400 @@ export default function AuthorityDashboardPage() {
         {/* TAB 5: AUTOMATED EARLY-WARNING DISPATCHES (CAP v1.2) */}
         {activeTab === "dispatches" && (
           <div className="space-y-6 animate-in fade-in duration-200">
-            <div className="p-5 rounded-xl bg-blue-950/20 border border-blue-800/40 space-y-2">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2 text-blue-300 font-bold text-sm">
-                  <Radio className="w-5 h-5" />
-                  <span>Automated Early-Warning Advisory Multi-Channel Dispatches</span>
+            {/* Executive Operations Header Banner */}
+            <div className="p-5 rounded-xl bg-blue-950/20 border border-blue-800/40 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400">
+                    <Radio className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>Automated Early-Warning Multi-Channel Dispatches</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-700 font-normal">
+                        Pre-Landfall Action
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      Standardized ITU / WMO Common Alerting Protocol (CAP v1.2) multi-vector dissemination network
+                    </p>
+                  </div>
                 </div>
-                <span className="text-xs font-mono text-cyan-300 bg-cyan-950 px-2.5 py-1 rounded border border-cyan-800">
-                  ITU / WMO Common Alerting Protocol (CAP v1.2)
-                </span>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-cyan-300 bg-cyan-950/80 px-2.5 py-1 rounded border border-cyan-800">
+                    OASIS CAP v1.2 Compliant
+                  </span>
+                  <button
+                    onClick={() => handleSimulateDispatch()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow-lg shadow-blue-950 transition"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Broadcast All Channels</span>
+                  </button>
+                </div>
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Automates instant dissemination of deterministic advisory packages across municipal PA siren networks,
-                cell broadcast 2G SMS, SDMA command webhooks, and citizen messaging channels.
+
+              <p className="text-xs text-slate-300 leading-relaxed border-t border-blue-900/40 pt-2.5">
+                Automates deterministic early warning packages to zero-latency civil protection vectors: 
+                <b> Cell Broadcast (GSM-7/UCS-2)</b> for disconnected citizens, <b>SDMA Command Webhooks</b> for collectorate video walls, 
+                <b> Acoustic PA Sirens</b> for coastal hamlets, and <b>WhatsApp Citizen Bots</b> for interactive shelter routing.
               </p>
             </div>
 
-            {/* Multi-Channel Dispatch Feeds */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {dispatches?.channels.map((ch) => (
-                <div key={ch.channel_id} className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className="font-bold text-sm text-white">{ch.channel_name}</h4>
-                      <span className="text-[11px] text-slate-400 font-mono">
-                        Protocol: {ch.protocol}
-                      </span>
+            {/* Visual Multi-Channel Broadcast Consoles */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {dispatches?.channels.map((ch) => {
+                const isSent = dispatchedChannels[ch.channel_id];
+                return (
+                  <div
+                    key={ch.channel_id}
+                    className="p-5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition"
+                  >
+                    {/* Channel Header */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-lg bg-slate-800 border border-slate-700">
+                          {ch.channel_id === "CELL_BROADCAST_SMS" && <Smartphone className="w-4 h-4 text-emerald-400" />}
+                          {ch.channel_id === "SDMA_COMMAND_WEBHOOK" && <ShieldAlert className="w-4 h-4 text-rose-400" />}
+                          {ch.channel_id === "MUNICIPAL_SIREN_PA" && <Volume2 className="w-4 h-4 text-amber-400" />}
+                          {ch.channel_id === "WHATSAPP_CITIZEN_BOT" && <MessageSquare className="w-4 h-4 text-cyan-400" />}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-white">{ch.channel_name}</h4>
+                          <span className="text-[11px] text-slate-400 font-mono block">
+                            Protocol: {ch.protocol}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                            isSent
+                              ? "bg-emerald-900/80 text-emerald-200 border border-emerald-600"
+                              : "bg-cyan-950 text-cyan-300 border border-cyan-800"
+                          }`}
+                        >
+                          {isSent ? "TRANSMITTED" : ch.status}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
-                      {ch.status}
-                    </span>
-                  </div>
 
-                  <div className="text-xs font-mono text-slate-400 bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-1">
-                    <span className="text-[10px] text-slate-500 block uppercase">TARGET BROADCAST ENDPOINT</span>
-                    <span className="text-slate-200 font-semibold">{ch.target}</span>
-                  </div>
+                    {/* Target Endpoint Info */}
+                    <div className="text-xs font-mono text-slate-300 bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-0.5">
+                      <span className="text-[10px] text-slate-500 block uppercase font-semibold">
+                        Target Broadcast Perimeter
+                      </span>
+                      <span className="text-slate-200 font-medium">{ch.target}</span>
+                    </div>
 
-                  <div className="text-xs bg-slate-950/80 p-3 rounded-lg border border-slate-800 font-mono text-slate-300 space-y-1.5">
-                    <span className="text-[10px] text-cyan-400 block uppercase">TRANSMISSION PAYLOAD</span>
-                    <pre className="text-[11px] whitespace-pre-wrap text-slate-300 font-mono overflow-x-auto">
-                      {JSON.stringify(ch.payload, null, 2)}
-                    </pre>
+                    {/* CHANNEL SPECIFIC RICH OPERATIONAL PREVIEW */}
+
+                    {/* 1. Cell Broadcast SMS: Smartphone Emergency Message Simulation */}
+                    {ch.channel_id === "CELL_BROADCAST_SMS" && (
+                      <div className="space-y-3.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-mono text-slate-400">TRANSMISSION ENCODING:</span>
+                          <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                            <button
+                              onClick={() => setSmsLang("en")}
+                              className={`px-2.5 py-0.5 rounded text-xs font-mono transition ${
+                                smsLang === "en"
+                                  ? "bg-emerald-600 text-white font-bold"
+                                  : "text-slate-400 hover:text-white"
+                              }`}
+                            >
+                              English (GSM-7)
+                            </button>
+                            <button
+                              onClick={() => setSmsLang("te")}
+                              className={`px-2.5 py-0.5 rounded text-xs font-mono transition ${
+                                smsLang === "te"
+                                  ? "bg-emerald-600 text-white font-bold"
+                                  : "text-slate-400 hover:text-white"
+                              }`}
+                            >
+                              తెలుగు (Telugu UCS-2)
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Smartphone Notification Box */}
+                        <div className="rounded-xl border border-rose-900/40 bg-slate-950 p-3.5 space-y-2.5 shadow-inner">
+                          <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                              <span className="text-[11px] font-bold text-rose-400 tracking-wide uppercase">
+                                Cell Broadcast • Emergency Alert
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-mono text-slate-500">APSDMA Warning</span>
+                          </div>
+
+                          <div className="p-3 rounded-lg bg-slate-900/90 border border-slate-800">
+                            <p className="text-xs text-white font-medium leading-relaxed">
+                              {smsLang === "en"
+                                ? ch.payload?.sms_english || "Severe cyclone alert dispatched."
+                                : ch.payload?.sms_telugu || "తీవ్ర తుఫాను హెచ్చరిక జారీ చేయబడింది."}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                            <span>
+                              {smsLang === "en"
+                                ? `${ch.payload?.char_count_en || 128} / 160 GSM-7 Chars (1 SMS frame)`
+                                : `${ch.payload?.char_count_te || 88} UCS-2 Chars (Unicode frame)`}
+                            </span>
+                            <span className="text-emerald-400 font-semibold">Bypass DND / Silent</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                          <div>
+                            <span className="text-slate-500 text-[10px] block">CHANNEL ID</span>
+                            <span className="text-slate-200">CB 4370 (Severe Warning)</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 text-[10px] block">OFFLINE PENETRATION</span>
+                            <span className="text-emerald-400">100% Active SIMs (No Data Needed)</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. SDMA Command Webhook: Incident Command Center Directive */}
+                    {ch.channel_id === "SDMA_COMMAND_WEBHOOK" && (
+                      <div className="space-y-3.5">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs">
+                          <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
+                            <span className="text-[10px] text-slate-500 block">ALERT ID</span>
+                            <span className="text-cyan-300 font-bold truncate block">{ch.payload?.alert_id}</span>
+                          </div>
+                          <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
+                            <span className="text-[10px] text-slate-500 block">SEVERITY</span>
+                            <span className="text-rose-400 font-bold block">{ch.payload?.severity} (RED)</span>
+                          </div>
+                          <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
+                            <span className="text-[10px] text-slate-500 block">DISTRICT</span>
+                            <span className="text-white font-bold block">{ch.payload?.target_district}</span>
+                          </div>
+                          <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
+                            <span className="text-[10px] text-slate-500 block">CVI SCORE</span>
+                            <span className="text-amber-400 font-bold block">{ch.payload?.cvi_score}</span>
+                          </div>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl bg-slate-950 border-l-4 border-rose-500 border border-slate-800 space-y-1.5">
+                          <span className="text-[10px] font-mono font-bold text-rose-400 tracking-wider block uppercase">
+                            Executive Incident Directive
+                          </span>
+                          <p className="text-xs text-slate-200 leading-relaxed font-sans">
+                            {ch.payload?.directive}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                          <span>Endpoint: ICCC Video Wall + Collector Ops Terminal</span>
+                          <span className="text-emerald-400 font-bold">HTTPS Webhook 200 OK</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. Municipal Siren & PA System */}
+                    {ch.channel_id === "MUNICIPAL_SIREN_PA" && (
+                      <div className="space-y-3.5">
+                        <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Volume2 className="w-4 h-4 text-amber-400" />
+                              <span className="text-xs font-bold text-white uppercase">Acoustic Tone Pattern</span>
+                            </div>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 font-bold">
+                              {ch.payload?.siren_pattern}
+                            </span>
+                          </div>
+
+                          {/* Animated Acoustic Waveform */}
+                          <div className="flex items-end justify-between gap-1.5 h-8 px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-800">
+                            {[35, 70, 95, 55, 85, 100, 75, 45, 90, 100, 65, 80, 100, 55, 75, 100, 85, 60, 90, 100].map((h, i) => (
+                              <div
+                                key={i}
+                                className="flex-1 bg-amber-400/90 rounded-t"
+                                style={{ height: `${h}%` }}
+                              />
+                            ))}
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                            <span>Acoustic Output: 115 dB @ 100m</span>
+                            <span className="text-amber-300 font-bold">Audible Radius: 3.5 km</span>
+                          </div>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+                          <span className="text-[10px] font-mono text-cyan-400 block uppercase font-bold">
+                            Loudspeaker Automated Speech Synthesis Script
+                          </span>
+                          <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs italic text-slate-200 leading-relaxed font-sans">
+                            &ldquo;{ch.payload?.loudspeaker_audio_script}&rdquo;
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-0.5">
+                            <span>TTS Voice: Bilingual AP Telemetry Engine</span>
+                            <span>Interval: Cycles every 15 min</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 4. WhatsApp Citizen Advisory Bot */}
+                    {ch.channel_id === "WHATSAPP_CITIZEN_BOT" && (
+                      <div className="space-y-3.5">
+                        <div className="rounded-xl border border-emerald-800/50 bg-slate-950 p-3.5 space-y-3">
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">
+                                AP
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-bold text-white">AP SDMA Advisory Bot</span>
+                                  <CheckCircle className="w-3 h-3 text-emerald-400 fill-emerald-400/20" />
+                                </div>
+                                <span className="text-[10px] text-emerald-400 font-mono">Official Verified Service</span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono text-slate-500">Live Delivery</span>
+                          </div>
+
+                          <div className="rounded-xl bg-emerald-950/40 border border-emerald-800/40 p-3 space-y-1.5 text-xs text-slate-200">
+                            <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[11px]">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              <span>CYCLONE PRE-LANDFALL CITIZEN ALERT</span>
+                            </div>
+                            <p className="leading-relaxed">
+                              Severe Cyclone threat approaching your area. High winds and storm surge expected. Immediate shelter occupancy advised.
+                            </p>
+                            <div className="text-[10px] text-right font-mono text-slate-400">
+                              Delivered • Read
+                            </div>
+                          </div>
+
+                          <div className="space-y-1 pt-1">
+                            <span className="text-[10px] font-mono text-slate-500 block uppercase font-semibold">
+                              Citizen Interactive Quick Actions
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {ch.payload?.quick_replies?.map((btn: string, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-900 border border-emerald-700/60 text-emerald-300 text-xs font-medium"
+                                >
+                                  {btn}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                          <span>Template: {ch.payload?.template}</span>
+                          <span className="text-emerald-400 font-semibold">Target Audience: ~45,000 Citizens</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Channel Action Trigger Button */}
+                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                      <span className="text-[11px] font-mono text-slate-400">
+                        {isSent ? "Status: Transmitted & Logged" : "Queue: Ready for Immediate Push"}
+                      </span>
+                      <button
+                        onClick={() => handleSimulateDispatch(ch.channel_id)}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition ${
+                          isSent
+                            ? "bg-slate-800 text-emerald-400 border border-emerald-800/60"
+                            : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                        }`}
+                      >
+                        <Send className="w-3 h-3" />
+                        <span>{isSent ? "Broadcast Again" : "Trigger Channel Push"}</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* Standard Common Alerting Protocol (CAP v1.2) XML Feed Viewer */}
-            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-cyan-400" />
-                  <h3 className="text-sm font-bold text-white">
-                    Standard CAP v1.2 XML Broadcast Feed
-                  </h3>
+            {/* Technical Protocol Payload Inspector (CAP v1.2 XML & Machine Payloads) */}
+            <div className="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
+              <button
+                onClick={() => setShowRawTechPayloads(!showRawTechPayloads)}
+                className="w-full p-4 flex items-center justify-between hover:bg-slate-800/50 transition text-left"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-cyan-400">
+                    <Code2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>Inspect Raw Common Alerting Protocol (CAP v1.2) XML &amp; Machine Payloads</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700">
+                        Developer &amp; Auditor View
+                      </span>
+                    </h4>
+                    <p className="text-xs text-slate-400">
+                      Standard ITU-T X.1303 &amp; OASIS CAP v1.2 XML schema. Click to {showRawTechPayloads ? "collapse" : "view"} raw machine syntax.
+                    </p>
+                  </div>
                 </div>
-                <button
-                  onClick={() => dispatches && copyToClipboard(dispatches.cap_xml, "CAP XML")}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-mono text-cyan-300 border border-slate-700 transition"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy XML Payload</span>
-                </button>
-              </div>
+                <div className="flex items-center gap-2 text-slate-400">
+                  <span className="text-xs font-mono">{showRawTechPayloads ? "Hide Payloads" : "Expand Payloads"}</span>
+                  {showRawTechPayloads ? (
+                    <ChevronUp className="w-4 h-4 text-cyan-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
+              </button>
 
-              <pre className="p-4 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono text-cyan-300/90 overflow-x-auto leading-relaxed">
-                {dispatches?.cap_xml || "Loading CAP feed..."}
-              </pre>
+              {showRawTechPayloads && (
+                <div className="p-4 border-t border-slate-800 space-y-4 bg-slate-950/60 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono text-cyan-400 font-bold uppercase">
+                      Standard CAP v1.2 XML Payload (Machine Broadcast Feed)
+                    </span>
+                    <button
+                      onClick={() => dispatches && copyToClipboard(dispatches.cap_xml, "CAP XML")}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-mono text-cyan-300 border border-slate-700 transition"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy CAP XML</span>
+                    </button>
+                  </div>
+
+                  <pre className="p-4 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono text-cyan-300/90 overflow-x-auto leading-relaxed max-h-80">
+                    {dispatches?.cap_xml || "Loading CAP feed..."}
+                  </pre>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs font-mono text-emerald-400 font-bold uppercase">
+                      CAP JSON Multi-Channel Manifest
+                    </span>
+                    <button
+                      onClick={() => dispatches && copyToClipboard(JSON.stringify(dispatches, null, 2), "CAP JSON")}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-mono text-emerald-300 border border-slate-700 transition"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Manifest JSON</span>
+                    </button>
+                  </div>
+
+                  <pre className="p-4 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono text-emerald-300/90 overflow-x-auto leading-relaxed max-h-80">
+                    {JSON.stringify(dispatches, null, 2)}
+                  </pre>
+                </div>
+              )}
             </div>
           </div>
         )}
