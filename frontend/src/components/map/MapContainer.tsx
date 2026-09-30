@@ -21,6 +21,7 @@ interface MapContainerProps {
   infrastructureAssets?: any[];
   center?: [number, number]; // [lon, lat]
   zoom?: number;
+  onSelectAsset?: (asset: any) => void;
 }
 
 export default function MapContainer({
@@ -28,6 +29,7 @@ export default function MapContainer({
   infrastructureAssets = [],
   center = [80.5, 15.8],
   zoom = 7.5,
+  onSelectAsset,
 }: MapContainerProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -37,8 +39,10 @@ export default function MapContainer({
   // Keep latest props in refs to eliminate stale closure bugs during map load/idle events
   const spatialLayersRef = useRef(spatialLayers);
   const infrastructureAssetsRef = useRef(infrastructureAssets);
+  const onSelectAssetRef = useRef(onSelectAsset);
   spatialLayersRef.current = spatialLayers;
   infrastructureAssetsRef.current = infrastructureAssets;
+  onSelectAssetRef.current = onSelectAsset;
 
   // Fully idempotent layer and marker rendering procedure
   const updateLayers = useCallback(() => {
@@ -251,6 +255,12 @@ export default function MapContainer({
           ${iconText}
         </div>
       `;
+
+      el.addEventListener("click", () => {
+        if (onSelectAssetRef.current) {
+          onSelectAssetRef.current(rawAsset);
+        }
+      });
 
       const assetName =
         props.name || rawAsset.name || "Critical Infrastructure Facility";
