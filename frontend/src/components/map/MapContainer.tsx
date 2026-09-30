@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -31,73 +31,19 @@ export default function MapContainer({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const [isMapReady, setIsMapReady] = useState(false);
 
-  useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
+  // Keep latest props in refs to eliminate stale closure bugs during map load/idle events
+  const spatialLayersRef = useRef(spatialLayers);
+  const infrastructureAssetsRef = useRef(infrastructureAssets);
+  spatialLayersRef.current = spatialLayers;
+  infrastructureAssetsRef.current = infrastructureAssets;
 
-    // Use ESRI World Dark Gray Canvas: High-reliability, keyless, dark tactical cartography
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: {
-        version: 8,
-        sources: {
-          esriDark: {
-            type: "raster",
-            tiles: [
-              "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-            ],
-            tileSize: 256,
-            attribution: "© Esri, HERE, Garmin, © OpenStreetMap contributors",
-          },
-        },
-        layers: [
-          {
-            id: "esri-dark-layer",
-            type: "raster",
-            source: "esriDark",
-            minzoom: 0,
-            maxzoom: 18,
-          },
-        ],
-      },
-      center: center,
-      zoom: zoom,
-    });
+  // Fully idempotent layer and marker rendering procedure
+  const updateLayers = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
 
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
-
-    map.on("load", () => {
-      mapRef.current = map;
-      updateLayers(map);
-    });
-
-    return () => {
-      markersRef.current.forEach((m) => m.remove());
-      map.remove();
-      mapRef.current = null;
-    };
-  }, []);
-
-  // Update view center when scenario changes
-  useEffect(() => {
-    if (mapRef.current) {
-      mapRef.current.flyTo({
-        center: center,
-        zoom: zoom,
-        speed: 1.2,
-        curve: 1.4,
-        essential: true,
-      });
-    }
-  }, [center[0], center[1], zoom]);
-
-  // Update map layers whenever spatialLayers or infrastructureAssets change
-  useEffect(() => {
-    if (!mapRef.current || !mapRef.current.isStyleLoaded()) return;
-    updateLayers(mapRef.current);
-  }, [spatialLayers, infrastructureAssets]);
-
-  const updateLayers = (map: maplibregl.Map) => {
     // Helper to safely remove layer and source
     const clearLayer = (id: string) => {
       if (map.getLayer(id)) map.removeLayer(id);
@@ -108,18 +54,27 @@ export default function MapContainer({
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    if (!spatialLayers) return;
+    // Pre-emptively clear all vector hazard layers to guarantee idempotency across scenario switches
+    clearLayer("track-line-layer");
+    clearLayer("surge-layer");
+    clearLayer("swath-64-layer");
+    clearLayer("swath-50-layer");
+    clearLayer("swath-34-layer");
+
+    const currentLayers = spatialLayersRef.current;
+    const currentAssets = infrastructureAssetsRef.current;
+
+    if (!currentLayers) return;
 
     // 1. Swath 34kt (Yellow Gale Swath)
-    clearLayer("swath-34-layer");
     if (
-      spatialLayers.swath_34kt &&
-      spatialLayers.swath_34kt.coordinates &&
-      spatialLayers.swath_34kt.coordinates.length > 0
+      currentLayers.swath_34kt &&
+      currentLayers.swath_34kt.coordinates &&
+      currentLayers.swath_34kt.coordinates.length > 0
     ) {
       map.addSource("swath-34-layer", {
         type: "geojson",
-        data: { type: "Feature", geometry: spatialLayers.swath_34kt, properties: {} },
+        data: { type: "Feature", geometry: currentLayers.swath_34kt, properties: {} },
       });
       map.addLayer({
         id: "swath-34-layer",
@@ -134,15 +89,14 @@ export default function MapContainer({
     }
 
     // 2. Swath 50kt (Orange Storm Swath)
-    clearLayer("swath-50-layer");
     if (
-      spatialLayers.swath_50kt &&
-      spatialLayers.swath_50kt.coordinates &&
-      spatialLayers.swath_50kt.coordinates.length > 0
+      currentLayers.swath_50kt &&
+      currentLayers.swath_50kt.coordinates &&
+      currentLayers.swath_50kt.coordinates.length > 0
     ) {
       map.addSource("swath-50-layer", {
         type: "geojson",
-        data: { type: "Feature", geometry: spatialLayers.swath_50kt, properties: {} },
+        data: { type: "Feature", geometry: currentLayers.swath_50kt, properties: {} },
       });
       map.addLayer({
         id: "swath-50-layer",
@@ -157,15 +111,14 @@ export default function MapContainer({
     }
 
     // 3. Swath 64kt (Red Hurricane Swath - Only for >= 118.5 km/h)
-    clearLayer("swath-64-layer");
     if (
-      spatialLayers.swath_64kt &&
-      spatialLayers.swath_64kt.coordinates &&
-      spatialLayers.swath_64kt.coordinates.length > 0
+      currentLayers.swath_64kt &&
+      currentLayers.swath_64kt.coordinates &&
+      currentLayers.swath_64kt.coordinates.length > 0
     ) {
       map.addSource("swath-64-layer", {
         type: "geojson",
-        data: { type: "Feature", geometry: spatialLayers.swath_64kt, properties: {} },
+        data: { type: "Feature", geometry: currentLayers.swath_64kt, properties: {} },
       });
       map.addLayer({
         id: "swath-64-layer",
@@ -180,17 +133,16 @@ export default function MapContainer({
     }
 
     // 4. Surge Inundation Zone (Cyan / Sea water)
-    clearLayer("surge-layer");
     if (
-      spatialLayers.surge_inundation_zone &&
-      spatialLayers.surge_inundation_zone.coordinates &&
-      spatialLayers.surge_inundation_zone.coordinates.length > 0
+      currentLayers.surge_inundation_zone &&
+      currentLayers.surge_inundation_zone.coordinates &&
+      currentLayers.surge_inundation_zone.coordinates.length > 0
     ) {
       map.addSource("surge-layer", {
         type: "geojson",
         data: {
           type: "Feature",
-          geometry: spatialLayers.surge_inundation_zone,
+          geometry: currentLayers.surge_inundation_zone,
           properties: {},
         },
       });
@@ -207,15 +159,14 @@ export default function MapContainer({
     }
 
     // 5. Track Line
-    clearLayer("track-line-layer");
     if (
-      spatialLayers.track_line &&
-      spatialLayers.track_line.coordinates &&
-      spatialLayers.track_line.coordinates.length > 0
+      currentLayers.track_line &&
+      currentLayers.track_line.coordinates &&
+      currentLayers.track_line.coordinates.length > 0
     ) {
       map.addSource("track-line-layer", {
         type: "geojson",
-        data: { type: "Feature", geometry: spatialLayers.track_line, properties: {} },
+        data: { type: "Feature", geometry: currentLayers.track_line, properties: {} },
       });
       map.addLayer({
         id: "track-line-layer",
@@ -230,7 +181,7 @@ export default function MapContainer({
     }
 
     // 6. Infrastructure Markers
-    infrastructureAssets.forEach((rawAsset) => {
+    currentAssets.forEach((rawAsset) => {
       // Support both GeoJSON Feature and direct object formats
       const props = rawAsset.properties || rawAsset;
       const geom = rawAsset.geometry || rawAsset;
@@ -315,7 +266,96 @@ export default function MapContainer({
 
       markersRef.current.push(marker);
     });
-  };
+  }, []);
+
+  // Initialize MapLibre instance
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    // Use ESRI World Dark Gray Canvas: High-reliability, keyless, dark tactical cartography
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: {
+        version: 8,
+        sources: {
+          esriDark: {
+            type: "raster",
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+            ],
+            tileSize: 256,
+            attribution: "© Esri, HERE, Garmin, © OpenStreetMap contributors",
+          },
+        },
+        layers: [
+          {
+            id: "esri-dark-layer",
+            type: "raster",
+            source: "esriDark",
+            minzoom: 0,
+            maxzoom: 18,
+          },
+        ],
+      },
+      center: center,
+      zoom: zoom,
+    });
+
+    mapRef.current = map;
+    if (typeof window !== "undefined") {
+      (window as any).__map = map;
+    }
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+
+    map.on("load", () => {
+      setIsMapReady(true);
+      updateLayers();
+    });
+
+    return () => {
+      if (typeof window !== "undefined" && (window as any).__map === map) {
+        delete (window as any).__map;
+      }
+      markersRef.current.forEach((m) => m.remove());
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  // Update view center when scenario changes
+  useEffect(() => {
+    if (mapRef.current && isMapReady) {
+      mapRef.current.flyTo({
+        center: center,
+        zoom: zoom,
+        speed: 1.2,
+        curve: 1.4,
+        essential: true,
+      });
+    }
+  }, [center[0], center[1], zoom, isMapReady]);
+
+  // Robust reactive rendering effect:
+  // Guarantees layers are drawn on initial load (once map is ready) and upon any data changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (isMapReady && map.isStyleLoaded()) {
+      updateLayers();
+    } else {
+      // Attach one-time listeners to handle async map loading / idle readiness
+      const onReady = () => {
+        updateLayers();
+      };
+      map.once("load", onReady);
+      map.once("idle", onReady);
+      return () => {
+        map.off("load", onReady);
+        map.off("idle", onReady);
+      };
+    }
+  }, [spatialLayers, infrastructureAssets, isMapReady, updateLayers]);
 
   return (
     <div className="relative w-full h-[520px] rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl">
