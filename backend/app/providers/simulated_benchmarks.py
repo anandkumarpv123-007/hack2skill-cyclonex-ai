@@ -6,7 +6,7 @@ for Cyclone Michaung (2023) and Cyclone Hudhud (2014).
 All data is strictly tagged as [SIMULATED SCENARIO BENCHMARK].
 """
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from app.providers.base import CycloneTrack, Waypoint
 
 
