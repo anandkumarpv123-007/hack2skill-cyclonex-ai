@@ -13,6 +13,8 @@ from app.engine.wind_field import generate_wind_swaths
 from app.engine.surge_scenario import calculate_scenario_surge_height, generate_surge_inundation_polygon
 from app.engine.spatial_join import evaluate_asset_exposure
 from app.engine.cvi_calculator import evaluate_coastal_districts
+from app.engine.rainfall_pathways import predict_rainfall_damage_pathways
+from app.engine.parametric_insurance import evaluate_parametric_insurance
 
 router = APIRouter()
 weather_provider = WeatherProvider()
@@ -188,6 +190,32 @@ async def evaluate_risk(
 
     cvi_rankings = evaluate_coastal_districts(evaluated_districts)
 
+    # Predict 24h convective rainfall accumulation & pluvial drainage pathways
+    rainfall_pathways = predict_rainfall_damage_pathways(
+        track.landfall_lat,
+        track.landfall_lon,
+        track.peak_wind_kmh,
+        COASTAL_DISTRICTS_GEOGRAPHY,
+    )
+
+    # Evaluate pre-landfall anticipatory parametric disaster insurance triggers
+    cyclone_meta = {
+        "id": track.id,
+        "name": track.name,
+        "category": track.category,
+        "peak_wind_kmh": track.peak_wind_kmh,
+        "min_pressure_hpa": track.min_pressure_hpa,
+        "landfall_target": track.landfall_target,
+        "is_simulated": track.is_simulated,
+        "data_source": track.data_source,
+    }
+    parametric_insurance = evaluate_parametric_insurance(
+        cyclone_meta,
+        surge_calc,
+        rainfall_pathways["summary"],
+        cvi_rankings[0] if cvi_rankings else {"district": "Coastal AP", "cvi_score": 0.65},
+    )
+
     # Clean GeoJSON structures for transmission
     layers = {
         "track_line": wind_swaths.get("track_geometry"),
@@ -195,21 +223,15 @@ async def evaluate_risk(
         "swath_50kt": wind_swaths["swath_50kt"]["geometry"],
         "swath_64kt": wind_swaths["swath_64kt"]["geometry"],
         "surge_inundation_zone": surge_inundation["geometry"],
+        "drainage_corridors": rainfall_pathways["drainage_corridors_geojson"],
     }
 
     return {
-        "cyclone_metadata": {
-            "id": track.id,
-            "name": track.name,
-            "category": track.category,
-            "peak_wind_kmh": track.peak_wind_kmh,
-            "min_pressure_hpa": track.min_pressure_hpa,
-            "landfall_target": track.landfall_target,
-            "is_simulated": track.is_simulated,
-            "data_source": track.data_source,
-        },
+        "cyclone_metadata": cyclone_meta,
         "surge_scenario": surge_calc,
         "exposure_summary": exposure_summary,
         "cvi_rankings": cvi_rankings,
+        "rainfall_pathways": rainfall_pathways,
+        "parametric_insurance": parametric_insurance,
         "spatial_layers": layers,
     }

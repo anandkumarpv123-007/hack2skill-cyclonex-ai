@@ -139,6 +139,27 @@ class GroundedAdvisoryEngine:
                 "5. Shelter Safety Status: Registered multi-purpose cyclone shelters are cleared above scenario surge levels. Mobilize emergency supplies to receive evacuees."
             )
 
+        rainfall = ground_truth.get("rainfall_pathways", {}).get("summary", {})
+        insurance = ground_truth.get("parametric_insurance", {}).get("execution_summary", {})
+        max_rain = rainfall.get("max_24h_rainfall_mm", 160.0)
+        released_cr = insurance.get("total_released_inr_cr", 0.0)
+        active_trigs = insurance.get("active_triggers_count", 0)
+
+        # Directive 6: Power Grid & Arterial Infrastructure Hardening
+        directives.append(
+            f"6. Critical Infrastructure Hardening: Enforce controlled islanding of 33kV coastal power feeders 4 hours pre-landfall to prevent cascading transformer burnouts. Pre-position heavy-duty tractor pumps at identified arterial culvert bottlenecks facing up to {max_rain} mm 24h convective rainfall."
+        )
+
+        # Directive 7: Parametric Disaster Insurance Pre-Landfall Liquidity
+        if released_cr > 0:
+            directives.append(
+                f"7. Parametric Disaster Insurance Liquidity: {active_trigs} deterministic physical trigger(s) verified. Released ₹{released_cr} Crore (${round(released_cr/8.35, 1)}M USD) pre-landfall emergency liquidity to {top_district} DDMA and state taskforces."
+            )
+        else:
+            directives.append(
+                "7. Parametric Disaster Insurance Liquidity: Hazard metrics currently below trigger thresholds. Parametric emergency capital pool remains on standby."
+            )
+
         authority_guidance_en = "\n".join(directives)
 
         citizen_advisory_en = (

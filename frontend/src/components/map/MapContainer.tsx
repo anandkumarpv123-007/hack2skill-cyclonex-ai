@@ -16,6 +16,7 @@ interface MapContainerProps {
     swath_50kt?: any;
     swath_64kt?: any;
     surge_inundation_zone?: any;
+    drainage_corridors?: any;
   } | null;
   infrastructureAssets?: any[];
   center?: [number, number]; // [lon, lat]
@@ -55,6 +56,7 @@ export default function MapContainer({
     markersRef.current = [];
 
     // Pre-emptively clear all vector hazard layers to guarantee idempotency across scenario switches
+    clearLayer("drainage-corridors-layer");
     clearLayer("track-line-layer");
     clearLayer("surge-layer");
     clearLayer("swath-64-layer");
@@ -180,7 +182,29 @@ export default function MapContainer({
       });
     }
 
-    // 6. Infrastructure Markers
+    // 6. Pluvial Rainfall Drainage Corridors & Arterial Road Washout Pathways
+    if (
+      currentLayers.drainage_corridors &&
+      currentLayers.drainage_corridors.features &&
+      currentLayers.drainage_corridors.features.length > 0
+    ) {
+      map.addSource("drainage-corridors-layer", {
+        type: "geojson",
+        data: currentLayers.drainage_corridors,
+      });
+      map.addLayer({
+        id: "drainage-corridors-layer",
+        type: "line",
+        source: "drainage-corridors-layer",
+        paint: {
+          "line-color": "#c084fc",
+          "line-width": 3.5,
+          "line-dasharray": [3, 2],
+        },
+      });
+    }
+
+    // 7. Infrastructure Markers
     currentAssets.forEach((rawAsset) => {
       // Support both GeoJSON Feature and direct object formats
       const props = rawAsset.properties || rawAsset;
@@ -361,6 +385,12 @@ export default function MapContainer({
     <div className="relative w-full h-[520px] rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl">
       <div ref={mapContainerRef} className="w-full h-full" />
 
+      {/* GEE Satellite Feeds Status Badge */}
+      <div className="absolute top-4 left-4 z-10 px-2.5 py-1.5 rounded-lg bg-slate-950/90 border border-slate-800 text-[10px] font-mono text-cyan-300 backdrop-blur shadow-lg flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span>GEE Feeds: USGS/SRTMGL1_003 (30m) • COPERNICUS/S1_GRD SAR</span>
+      </div>
+
       {/* Map Legend Overlay */}
       <div className="absolute bottom-4 left-4 z-10 p-3 rounded-lg bg-slate-950/90 border border-slate-800 backdrop-blur text-xs space-y-1.5 shadow-lg max-w-xs">
         <div className="font-bold text-slate-200 text-[11px] uppercase tracking-wider mb-1">
@@ -383,6 +413,10 @@ export default function MapContainer({
         <div className="flex items-center gap-2">
           <span className="w-3.5 h-3.5 rounded bg-cyan-500/70 border border-cyan-400" />
           <span className="text-slate-300">Scenario Surge Inundation Envelope</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3.5 h-1 rounded bg-purple-400 border border-purple-300" />
+          <span className="text-slate-300">Pluvial Drainage & Washout Corridor</span>
         </div>
         <div className="flex items-center gap-2 pt-1 border-t border-slate-800 text-[11px] text-slate-400">
           <span>🏥 Hospital</span>
