@@ -4,7 +4,7 @@ Couples deterministic spatial risk calculations with Gemini 3.7 Flash (Vertex AI
 and provides a zero-hallucination deterministic fallback synthesizer.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import os
 from app.core.config import settings
 from app.core.logging import logger
