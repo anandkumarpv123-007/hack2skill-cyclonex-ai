@@ -6,11 +6,18 @@ import {
   ShelterCandidate,
 } from "@/types/cyclone";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+function getApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+  if (typeof window !== "undefined" && window.location.hostname) {
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
+  }
+  return "http://localhost:8000";
+}
 
 export async function fetchBackendHealth(): Promise<HealthResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/health`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/v1/health`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -20,7 +27,7 @@ export async function fetchBackendHealth(): Promise<HealthResponse> {
 }
 
 export async function fetchBenchmarks(): Promise<any[]> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/cyclone/benchmarks`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/v1/cyclone/benchmarks`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch benchmarks");
@@ -28,7 +35,7 @@ export async function fetchBenchmarks(): Promise<any[]> {
 }
 
 export async function fetchActiveCyclone(): Promise<CycloneTrack> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/cyclone/active`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/v1/cyclone/active`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch active cyclone");
@@ -36,7 +43,7 @@ export async function fetchActiveCyclone(): Promise<CycloneTrack> {
 }
 
 export async function fetchCycloneById(cycloneId: string): Promise<CycloneTrack> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/cyclone/${cycloneId}`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/v1/cyclone/${cycloneId}`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Failed to fetch cyclone '${cycloneId}'`);
@@ -46,7 +53,7 @@ export async function fetchCycloneById(cycloneId: string): Promise<CycloneTrack>
 export async function evaluateRisk(
   cycloneId?: string
 ): Promise<RiskEvaluationResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/risk/evaluate`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/v1/risk/evaluate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ cyclone_id: cycloneId || null }),
@@ -59,7 +66,7 @@ export async function evaluateRisk(
 export async function generateAdvisory(
   cycloneId?: string
 ): Promise<AdvisoryResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/advisory/generate`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/v1/advisory/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ cyclone_id: cycloneId || null }),
@@ -84,7 +91,7 @@ export async function fetchNearbyShelters(
     query.set("cyclone_id", cycloneId);
   }
   const res = await fetch(
-    `${API_BASE_URL}/api/v1/infrastructure/shelters/nearby?${query.toString()}`,
+    `${getApiBaseUrl()}/api/v1/infrastructure/shelters/nearby?${query.toString()}`,
     { cache: "no-store" }
   );
   if (!res.ok) throw new Error("Failed to fetch nearby shelters");
@@ -95,8 +102,8 @@ export async function fetchInfrastructureGeoJSON(
   assetType?: string
 ): Promise<any> {
   const url = assetType
-    ? `${API_BASE_URL}/api/v1/infrastructure/assets?asset_type=${assetType}`
-    : `${API_BASE_URL}/api/v1/infrastructure/assets`;
+    ? `${getApiBaseUrl()}/api/v1/infrastructure/assets?asset_type=${assetType}`
+    : `${getApiBaseUrl()}/api/v1/infrastructure/assets`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch infrastructure GeoJSON");
   return res.json();
