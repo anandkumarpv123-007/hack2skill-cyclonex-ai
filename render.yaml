@@ -1,0 +1,30 @@
+services:
+  # FastAPI Backend
+  - type: web
+    name: cyclonex-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: ENVIRONMENT
+        value: production
+
+  # Next.js Frontend
+  - type: web
+    name: cyclonex-frontend
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start -- -H 0.0.0.0 -p $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NEXT_PUBLIC_API_BASE_URL
+        fromService:
+          name: cyclonex-backend
+          type: web
+          property: host
+          envVarKey: NEXT_PUBLIC_API_BASE_URL

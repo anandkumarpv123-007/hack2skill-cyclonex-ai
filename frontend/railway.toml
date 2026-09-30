@@ -1,0 +1,8 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm run build"
+
+[deploy]
+startCommand = "npm run start -- -H 0.0.0.0 -p $PORT"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
