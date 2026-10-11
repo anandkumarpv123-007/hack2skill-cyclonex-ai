@@ -90,7 +90,7 @@ export default function ExecutiveActionStrip({
             </p>
           </div>
           <div className="pt-2 border-t border-[#1e293b] text-[10px] font-mono text-slate-400">
-            IMD Ground Truth Verified
+            IMD Reference Baseline Data
           </div>
         </div>
 

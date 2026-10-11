@@ -32,6 +32,6 @@ def get_health() -> HealthResponse:
         version=settings.VERSION,
         environment=settings.ENVIRONMENT,
         data_source_mode=settings.DATA_SOURCE_MODE,
-        milestone="Milestone 1: Project Scaffolding & Monorepo Foundation",
+        milestone="Milestone 6: Pre-Landfall Anticipatory Action Prototype (Simulated Data Mode)",
         deterministic_stack=stack_info,
     )

@@ -418,7 +418,7 @@ export default function CitizenPortalPage() {
               <span>
                 {locale === "te"
                   ? "తీవ్ర ప్రమాదం • అత్యవసర రక్షణ చర్యలు"
-                  : "EXTREME HAZARD WARNING • IMMEDIATE ACTION"}
+                  : "HAZARD ADVISORY • PRE-LANDFALL ACTION"}
               </span>
             </div>
             <span className="text-[11px] px-2 py-0.5 rounded bg-amber-950/80 border border-amber-800 text-amber-300 font-mono">

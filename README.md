@@ -4,7 +4,7 @@
 
 [![Live Prototype](https://img.shields.io/badge/Live%20Prototype-Railway%20Cloud-0284C7?style=flat&logo=railway)](https://cyclonex-frontend-production.up.railway.app/)
 [![API Health](https://img.shields.io/badge/API%20Health-FastAPI%20OK-009688?style=flat&logo=fastapi)](https://cyclonex-backend-production.up.railway.app/api/v1/health)
-[![Backend Tests](https://img.shields.io/badge/Pytest-24%2F24%20Passing-brightgreen?style=flat&logo=pytest)](backend/tests/)
+[![Backend Tests](https://img.shields.io/badge/Pytest-34%2F34%20Passing-brightgreen?style=flat&logo=pytest)](backend/tests/)
 [![Next.js 16](https://img.shields.io/badge/Frontend-Next.js%2016%20%7C%20React%2019-black?style=flat&logo=next.js)](frontend/)
 [![Python 3.14](https://img.shields.io/badge/Python-3.12%20%7C%203.14-3776AB?style=flat&logo=python)](https://python.org)
 [![Geospatial](https://img.shields.io/badge/GIS-GeoPandas%20%7C%20Shapely-green.svg)](https://geopandas.org)
@@ -18,8 +18,8 @@
 | Service | Public URL | Description |
 | :--- | :--- | :--- |
 | **Frontend Web App** | [cyclonex-frontend-production.up.railway.app](https://cyclonex-frontend-production.up.railway.app/) | Authority Incident Command OS & Citizen Emergency Portal |
-| **Backend Telemetry** | [cyclonex-backend-production.up.railway.app/api/v1/health](https://cyclonex-backend-production.up.railway.app/api/v1/health) | Deterministic risk engine health check & active Python stack verification |
-| **Interactive API Docs**| [cyclonex-backend-production.up.railway.app/docs](https://cyclonex-backend-production.up.railway.app/docs) | Interactive OpenAPI/Swagger documentation for all GIS & advisory endpoints |
+| **Backend Telemetry** | [cyclonex-backend-production.up.railway.app/api/v1/health](https://cyclonex-backend-production.up.railway.app/api/v1/health) | Milestone 6: Pre-Landfall Anticipatory Action Prototype (Simulated Data Mode) health & stack probe |
+| **Interactive API Docs**| [cyclonex-backend-production.up.railway.app/api/v1/docs](https://cyclonex-backend-production.up.railway.app/api/v1/docs) | Interactive OpenAPI/Swagger documentation (with `/docs` redirect support) |
 
 > **Deployment Architecture Note**: The current public prototype is deployed on Railway using multi-stage container builds. The codebase includes production Dockerfiles configured with required C-libraries (GDAL, GEOS, PROJ) for portable deployment across modern container environments, including Google Cloud Run.
 
@@ -52,6 +52,7 @@ FORECAST  ➔  IMPACT  ➔  CASCADE  ➔  ACTION
 3. **Honest Modeling Boundaries**: Storm surge modeling is **scenario-based** and informed by established coastal surge methodologies and the inverted-barometer relationship. It combines coastal DEM elevation thresholds with central pressure drop and wind setup proxies for pre-landfall vulnerability screening and decision support—explicitly **not** a calibrated hydrodynamic partial differential equation (PDE) solver or engineering-grade flood-boundary prediction.
 4. **Bilingual Regional Emergency Communication**: Dual experiences—a deep **Authority Incident Command OS** for disaster commanders and an ultra-lightweight, high-contrast **Citizen Emergency Portal** localized in **English and Telugu (తెలుగు)** with a nearest-shelter selector with hazard clearance checks.
 5. **Simulated Parametric Disaster Facility**: Models a **₹25 Cr simulated pre-landfall liquidity trigger** across multi-tier parametric tranches, demonstrating how anticipatory relief capital can be disbursed before landfall rather than relying on delayed post-disaster indemnity assessments.
+6. **Operational Cloud Runtime Transparency**: In the current deployed prototype, Google Cloud credentials are intentionally unconfigured, so Vertex AI Gemini and Google Earth Engine remain offline. The application operates via its deterministic rule-based grounding engine and verified local coastal elevation benchmark (`LOCAL_COASTAL_BENCHMARK`). If `GEE_PROJECT_ID` and `GOOGLE_APPLICATION_CREDENTIALS` are provided in the environment, live Vertex AI Gemini 3.7 Flash and Earth Engine services are seamlessly engaged.
 
 ---
 
@@ -88,7 +89,7 @@ flowchart TD
 
     subgraph Frontend["3. CYCLONEX Dual Portals (Next.js 16 + React 19 + MapLibre GL)"]
         Authority["Authority Incident Command OS\n(Satellite/Dark Vector MapLibre GIS + Recharts)"]
-        Citizen["Citizen Emergency Portal\n(Offline-First PWA, Pincode Search, English + Telugu)"]
+        Citizen["Citizen Emergency Portal\n(Low-Bandwidth Mobile Web, Pincode Search, English + Telugu)"]
     end
 
     OPENMETEO --> Ingest[Data Ingestion & Normalizer]
@@ -161,9 +162,9 @@ cyclonex/
 │   │   │   └── simulated_benchmarks.py# Cyclone Michaung (2023) & Hudhud (2014) benchmark archives
 │   │   ├── ai/
 │   │   │   ├── vertex_gemini.py       # Gemini 3.7 Flash grounding client & fallback
-│   │   │   └── prompt_templates.py    # Strict grounding prompt directives (zero numerical hallucination)
+│   │   │   └── prompt_templates.py    # Strict grounding prompt directives (strict numerical grounding)
 │   │   └── main.py                    # FastAPI application, CORS & router registration
-│   ├── tests/                         # Complete Pytest test suite (24/24 tests passing)
+│   ├── tests/                         # Complete Pytest test suite (34/34 tests passing)
 │   ├── Dockerfile                     # Multi-stage container with GDAL, GEOS, PROJ C-libraries
 │   ├── requirements.txt               # Pinned backend dependencies
 │   ├── railway.toml                   # Railway container deployment configuration
@@ -222,7 +223,7 @@ $$h_{\text{surge\_scenario}} = \Delta h_{\text{pressure}} + \Delta h_{\text{wind
   *(Where $\alpha \approx 1.15$ models the shallow, gently sloping coastal shelf of the Krishna-Godavari Bay of Bengal interface).*
 - **Scenario Inundation Reach**:
   $$\text{Reach}_{\text{km}} = \min\left(25.0,\, \max\left(2.0,\, \frac{h_{\text{surge\_scenario}}}{\text{Slope}_{\text{coastal}}}\right)\right)$$
-  *(Where $\text{Slope}_{\text{coastal}} \approx 0.35\,\text{m/km}$ based on Google Earth Engine SRTM 30m digital elevation transects).*
+  *(Where $\text{Slope}_{\text{coastal}} \approx 0.35\,\text{m/km}$ is an uncalibrated geometric planar slope screening heuristic based on coastal DEM transects, not an operational hydrodynamic flood boundary).*
 
 ### 4.3 Composite Vulnerability Index (CVI)
 For any administrative district or ward $k$, CVI is computed from normalized component scores using fixed weighted factors, with the final score bounded strictly to $[0.0, 1.0]$:
@@ -235,8 +236,10 @@ $$\text{CVI}_k = \max\left(0.0,\, \min\left(1.0,\, w_w \cdot \overline{V}_{\text
   - $\overline{E}_k = \min(1.0,\, \text{elevation}_{\text{mean}} / 30.0) \implies \text{Elevation Deficit Risk} = 1 - \overline{E}_k$
   - $I_{\text{density}} = \min(1.0,\, \text{critical\_assets\_count} / 15.0)$
   - $C_{\text{shelter}} = \text{clamp}(\text{shelter\_capacity\_ratio},\, 0.0,\, 1.0)$
-- **Fixed Model Weights**:
-  $w_w = 0.35$ (Peak Wind), $w_s = 0.35$ (Surge Inundation), $w_e = 0.15$ (Low Elevation Risk), $w_i = 0.15$ (Infrastructure Density), $w_c = 0.05$ (Shelter Capacity Mitigation).
+- **Fixed Model Weights & Arithmetic**:
+  - Positive hazard & vulnerability factors: $w_w = 0.35$ (Peak Wind), $w_s = 0.35$ (Surge Inundation), $w_e = 0.15$ (Low Elevation Risk), $w_i = 0.15$ (Infrastructure Density). The four positive factor weights sum exactly to $1.00$ ($0.35 + 0.35 + 0.15 + 0.15 = 1.00$).
+  - Mitigation factor: $w_c = 0.05$ (Shelter Capacity Mitigation, subtractive offset).
+  - Note on parameter dictionary: The five dictionary weight values total $1.05$ in absolute magnitude ($1.00 + 0.05$). Because shelter mitigation is subtracted, raw unconstrained scores span $[-0.05, 1.00]$ and are clamped strictly to $[0.0, 1.0]$.
 - **Severity Classification**:
   - **Low**: $< 0.30$ (Routine monitoring)
   - **Moderate**: $0.30 – 0.499$ (Restrict movement, secure coastal assets)
@@ -278,7 +281,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 cp .env.example .env
 
-# Run full verification test suite (24 tests)
+# Run full verification test suite (34 tests)
 pytest -v
 
 # Start FastAPI development server
@@ -318,9 +321,9 @@ Follow this structured, competition-tested narrative matching the 6-slide showca
    - Toggle basemaps between **🛰️ Satellite (ESRI World Imagery)** and **🗺️ Dark Canvas**.
    - Note the stationary, anchor-centered infrastructure pins showing power substations, hospitals, and highways with deterministic hazard badges.
 3. **The Engineering Pipeline & Grounded AI (1:30 – 2:15) — [Slide 3 & 4: Technical Rigor]**:
-   - Explain the 4-stage pipeline: Ingestion (GEE SRTM 30m, Sentinel SAR, OSM) ➔ Physics (Inverted Barometer, wind swaths) ➔ Prediction (substation flood-locking, NH-16 washout) ➔ Action (CAP v1.2 alerts).
+   - Explain the 4-stage pipeline: Ingestion (Google Earth Engine / SRTM 30m DEM, OSM) ➔ Physics (Inverted Barometer, wind swaths) ➔ Prediction (substation flood-locking, NH-16 washout) ➔ Action (CAP v1.2 alerts).
    - Scroll to the **Tactical Directives**: *"The numerical metrics shown in this briefing originate from our deterministic GeoPandas risk engine and are passed to Gemini 3.7 Flash as verified JSON. The LLM synthesizes operational narratives; it never invents numbers."*
-   - Highlight real disaster resilience: Offline-first PWA caching (<50KB), deterministic ground-truth boundary, and full English + Telugu localization.
+   - Highlight real disaster resilience: Low-bandwidth responsive design (<50KB payload), deterministic ground-truth boundary, and full English + Telugu localization.
 4. **Impact & Anticipatory Financing (2:15 – 3:00) — [Slide 5: Quantifiable Impact]**:
    - Show the **₹25.0 Cr Simulated Parametric Liquidity Facility**: Explain how parametric triggers (50 kt wind + 2.0m surge) release capital pre-landfall for municipal evacuation transport and relief, bypassing post-disaster delays.
    - Inspect the **Alerts & Dispatches Console**: Show OASIS CAP v1.2 XML generation ready for NDMA SACHET and APSDMA gateways.
@@ -340,7 +343,7 @@ Follow this structured, competition-tested narrative matching the 6-slide showca
 | **"Coupled GeoPandas and Shapely deterministic hazard buffering with Google Vertex AI Gemini 3.7 Flash for pre-landfall cyclone decision support."** | ❌ *"Trained a deep learning model that predicts cyclone tracks more accurately than the weather department."* |
 | **"Implemented an explainable scenario-based storm surge inundation model using inverted barometric pressure drop and coastal DEM elevation."** | ❌ *"Built a calibrated hydrodynamic partial differential equation (PDE) solver (like operational SLOSH or ADCIRC)."* |
 | **"Enforced strictly grounded AI by passing verified spatial JSON matrices to Gemini 3.7 Flash and asserting numerical integrity outside the LLM."** | ❌ *"Guaranteed that a generative LLM can never hallucinate in unconstrained settings."* |
-| **"Engineered an offline-first bilingual emergency response portal in English and Telugu with GPU-accelerated MapLibre GL JS vector/satellite tiles and a nearest-shelter selector."** | ❌ *"Built a full graph-network road routing engine or live-monitored IoT sensors inside all hospitals."* |
+| **"Engineered a lightweight bilingual emergency response portal in English and Telugu with GPU-accelerated MapLibre GL JS vector/satellite tiles and a nearest-shelter selector with hazard clearance checks."** | ❌ *"Built a full graph-network road routing engine or live-monitored IoT sensors inside all hospitals."* |
 | **"Modeled a simulated ₹25 Cr pre-landfall parametric insurance liquidity trigger engine to demonstrate anticipatory disaster financing."** | ❌ *"Executed live banking/insurance capital transactions with financial institutions."* |
 | **"Constructed an OASIS CAP v1.2 XML emergency dispatch generator producing broadcast-ready payloads for emergency authorities."** | ❌ *"Sent real SMS or telecom cell broadcasts to Indian telecom networks."* |
 
@@ -350,11 +353,11 @@ Follow this structured, competition-tested narrative matching the 6-slide showca
 
 CYCLONEX has undergone end-to-end automated and browser verification:
 
-- **Backend Pytest Suite**: **24/24 tests passed** (100% pass rate in 0.32s) covering CVI formulas, wind swaths, surge polygons, parametric triggers, rainfall damage pathways, and dispatch generators.
+- **Backend Pytest Suite**: **34/34 tests passed** (100% pass rate in <0.2s) covering CVI formulas and boundary rounding, wind swaths, surge planar heuristics, parametric triggers, rainfall damage pathways, OpenAPI/Redoc endpoints, and grounded advisory generation.
 - **Frontend Turbopack Build**: Next.js 16 production build compiled successfully with strict TypeScript validation.
 - **Headless Browser Audit (Puppeteer E2E)**:
   - **Cyclone Michaung Scenario**: Verified Severe Cyclonic Storm (SCS) at 110 km/h with 2.2m surge.
-  - **Live Cat 5 Simulation Scenario**: Verified Super Cyclonic Storm (SuCS) at 235 km/h with 6.83m surge without unhandled exceptions.
+  - **Synthetic Benchmark Scenario (SuCS)**: Verified Super Cyclonic Storm (Cat 5 equivalent) at 235 km/h with 6.83m surge without unhandled exceptions.
   - **Cyclone Hudhud Scenario**: Verified Extremely Severe Cyclonic Storm (ESCS) at 185 km/h with 4.61m surge.
   - **GIS Map Layers & Basemaps**: Verified ESRI Satellite raster tiles, Dark Canvas vector layers, 34/50/64-kt wind buffer swaths, coastal surge envelopes, and stationary infrastructure markers.
   - **Marker Stability**: Confirmed 0.00px hover drift and intact marker instances upon popup interaction.

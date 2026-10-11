@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.logging import logger
@@ -41,14 +42,26 @@ app.add_middleware(
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
+@app.get("/docs", include_in_schema=False)
+def docs_redirect():
+    """Convenience redirect for users/reviewers navigating directly to /docs."""
+    return RedirectResponse(url=f"{settings.API_V1_STR}/docs")
+
+
+@app.get("/redoc", include_in_schema=False)
+def redoc_redirect():
+    """Convenience redirect for users/reviewers navigating directly to /redoc."""
+    return RedirectResponse(url=f"{settings.API_V1_STR}/redoc")
+
+
 @app.get("/", summary="Root Metadata")
 def root_metadata():
     return {
         "platform": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "status": "operational",
-        "milestone": "Milestone 1: Project Scaffolding & Monorepo Foundation",
+        "milestone": "Milestone 6: Pre-Landfall Anticipatory Action Prototype (Simulated Data Mode)",
         "documentation": f"{settings.API_V1_STR}/docs",
         "health_check": f"{settings.API_V1_STR}/health",
-        "architecture": "Deterministic Geospatial Engine + Grounded Multimodal Advisory",
+        "architecture": "Deterministic Geospatial Engine + Rule-Based Grounded Synthesis (Gemini Offline)",
     }

@@ -1,7 +1,8 @@
 """
-AI & Multimodal Advisory Package
-Targeted for Milestone 4 implementation:
-- Vertex AI Gemini 3.7 Flash client
+Grounded AI Advisory Package
+Implementation:
+- Google Gemini Developer API client (google-genai SDK)
 - Strict Grounding Contract (anti-hallucination layer)
+- Grounded Deterministic Operational Fallback Engine
 - Bilingual Tactical Action Plan & Citizen Alert Generation (English & Telugu)
 """

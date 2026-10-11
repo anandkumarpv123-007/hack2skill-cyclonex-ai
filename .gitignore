@@ -35,3 +35,24 @@ yarn-error.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Temporary verification & development artifacts
+apply_surgical_edits.py
+inspect_ref.js
+inspect_s1.py
+scan_phrases.py
+test_user_requests.js
+verify_qa_fixes.js
+reference_data.json
+reference_rendered.html
+reference_screenshot.png
+reference_ui/
+citizen_location_search_verified.png
+command_os_alerts.png
+command_os_dashboard.png
+command_os_emergency_mode.png
+command_os_hardening.png
+command_os_infrastructure_drawer.png
+command_os_risk_intelligence.png
+command_os_risk_map.png
+satellite_map_verified.png

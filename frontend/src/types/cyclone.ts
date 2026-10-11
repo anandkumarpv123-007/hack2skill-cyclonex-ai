@@ -206,15 +206,22 @@ export interface AdvisoryData {
   is_live_ai: boolean;
   ai_provider: string;
   model: string;
+  gemini_briefing?: string | null;
   grounding_integrity_verified: boolean;
+  grounding_status?: string;
+  fallback_reason?: string | null;
   metrics_cited: {
     cyclone_name: string;
     peak_wind_kmh: number;
+    central_pressure_hpa?: number;
     surge_height_m: number;
+    scenario_surge_m?: number;
     hospitals_at_risk: number;
     roads_inundated_km: number;
     highest_risk_district: string;
     highest_cvi_score: number;
+    district_risk_level?: string;
+    district_action_code?: string;
   };
   authority_guidance_en: string;
   citizen_advisory_en: string;

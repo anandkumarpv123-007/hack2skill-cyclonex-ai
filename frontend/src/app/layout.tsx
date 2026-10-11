@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CYCLONEX | AI-Assisted Geospatial Cyclone Risk Platform",
   description:
-    "Pre-landfall cyclone risk and critical-infrastructure geospatial decision-support platform combining deterministic hazard modeling with grounded multimodal AI.",
+    "Pre-landfall cyclone risk and critical-infrastructure geospatial decision-support platform combining deterministic hazard modeling with grounded generative AI.",
 };
 
 export default function RootLayout({

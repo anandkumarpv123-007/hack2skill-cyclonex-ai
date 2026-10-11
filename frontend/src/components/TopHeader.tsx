@@ -147,7 +147,7 @@ export default function TopHeader({
         <button
           onClick={onRefresh}
           className="p-1.5 rounded-lg bg-[#151f32] text-slate-300 hover:text-white border border-[#22334e] transition cursor-pointer"
-          title="Synchronize Live Telemetry"
+          title="Reload Scenario Data"
           disabled={isSyncing}
         >
           <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin text-cyan-400" : ""}`} />

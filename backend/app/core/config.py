@@ -42,9 +42,10 @@ class Settings(BaseSettings):
     DEFAULT_BENCHMARK_SCENARIO: str = "cyclone_michaung_2023"
 
     # Cloud & External Services (Milestone 3 & 4)
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     GOOGLE_CLOUD_PROJECT: str = ""
     VERTEX_AI_LOCATION: str = "us-central1"
-    GEMINI_MODEL: str = "gemini-3.7-flash"
     GEE_PROJECT_ID: str = ""
     GEE_SERVICE_ACCOUNT_KEY_PATH: str = ""
     OPEN_METEO_API_URL: str = "https://api.open-meteo.com/v1/forecast"

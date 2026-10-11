@@ -193,7 +193,7 @@ export default function AuthorityDashboardPage() {
   const handleSimulateDispatch = (channelId?: string) => {
     if (channelId) {
       setDispatchedChannels((prev) => ({ ...prev, [channelId]: true }));
-      setCopyToast(`✓ Live emergency advisory dispatched to ${channelId}`);
+      setCopyToast(`✓ Simulated emergency advisory generated for ${channelId}`);
     } else {
       setDispatchedChannels({
         SDMA_COMMAND_WEBHOOK: true,
@@ -201,7 +201,7 @@ export default function AuthorityDashboardPage() {
         MUNICIPAL_SIREN_PA: true,
         WHATSAPP_CITIZEN_BOT: true,
       });
-      setCopyToast(`✓ All 4 emergency early-warning channels successfully triggered!`);
+      setCopyToast(`✓ Simulated payloads generated for all 4 emergency channels.`);
     }
     setTimeout(() => setCopyToast(null), 3500);
   };
@@ -303,7 +303,7 @@ export default function AuthorityDashboardPage() {
   const scenarioOptions = [
     { id: "cyclone_michaung_2023", name: "Cyclone Michaung (Dec 2023) — SCS at landfall" },
     { id: "cyclone_hudhud_2014", name: "Cyclone Hudhud (Oct 2014) — ESCS at landfall" },
-    { id: "cyclone_live_simulation", name: "Live Bay of Bengal Simulation — SuCS (Cat 5 equivalent)" },
+    { id: "cyclone_live_simulation", name: "Synthetic Benchmark Scenario — SuCS (Cat 5 equivalent)" },
   ];
 
   const highestCvi = riskData?.cvi_rankings?.[0] || {
@@ -514,7 +514,7 @@ export default function AuthorityDashboardPage() {
                     </div>
                   </div>
 
-                  {/* Multimodal Gemini AI Operations Briefing */}
+                  {/* Grounded Operational Briefing */}
                   <div className="p-5 rounded-2xl bg-[#0c1220] border border-cyan-500/30 space-y-3 shadow-2xl relative overflow-hidden">
                     <div className="flex items-center justify-between border-b border-[#1e293b] pb-2.5">
                       <div className="flex items-center space-x-2.5">
@@ -523,32 +523,72 @@ export default function AuthorityDashboardPage() {
                         </div>
                         <div>
                           <h3 className="text-xs font-mono font-bold uppercase text-white tracking-wider">
-                            AI DISASTER INTELLIGENCE BRIEFING
+                            {advisory?.is_live_ai
+                              ? "GEMINI AI OPERATIONAL BRIEFING"
+                              : "DETERMINISTIC OPERATIONAL BRIEFING"}
                           </h3>
                           <span className="text-[10px] text-cyan-400 font-mono">
-                            {advisory?.model || "Gemini 3.7 Flash Multimodal Reasoning"} • Zero Numerical Fabrication
+                            {advisory?.is_live_ai
+                              ? `${advisory.model} (Live Gemini API)`
+                              : "Gemini unavailable — rule-based briefing shown"}
                           </span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700">
-                          Grounding Integrity: Verified
+                        <span className="text-[10px] font-mono text-cyan-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-700">
+                          {advisory?.is_live_ai ? "Live Gemini AI" : "Deterministic Engine"}
                         </span>
                         <button
                           onClick={() => loadData(selectedScenarioId)}
                           className="flex items-center gap-1 px-2.5 py-1 rounded bg-[#131d31] hover:bg-[#1a2742] text-xs font-mono text-cyan-300 border border-[#22334e] transition"
                         >
                           <RefreshCw className="w-3 h-3" />
-                          <span>REFRESH AI</span>
+                          <span>REFRESH</span>
                         </button>
                       </div>
                     </div>
 
-                    <p className="text-xs text-slate-200 leading-relaxed font-sans">
-                      {advisory?.authority_guidance_en ||
-                        `${cyclone.name} (${cyclone.category}) is maintaining intense cyclonic circulation with peak sustained winds of ${cyclone.peak_wind_kmh} km/h and central barometric pressure of ${cyclone.min_pressure_hpa} hPa. Mandatory coastal evacuation of all low-lying habitations is actively underway.`}
-                    </p>
+                    {advisory?.is_live_ai && advisory.gemini_briefing ? (
+                      <div className="space-y-3">
+                        <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/40 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-mono text-cyan-300 font-bold uppercase tracking-wider">
+                              Live Gemini AI Synthesis ({advisory.model})
+                            </span>
+                            <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700">
+                              {advisory.grounding_status || "GROUNDED"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-100 leading-relaxed font-sans whitespace-pre-line">
+                            {advisory.gemini_briefing}
+                          </p>
+                        </div>
+                        <div className="pt-2 border-t border-[#1e293b]">
+                          <span className="text-[10px] font-mono text-slate-400 block mb-1">
+                            AUTHORITATIVE INCIDENT COMMAND DIRECTIVE:
+                          </span>
+                          <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                            {advisory.authority_guidance_en}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="p-2.5 rounded-lg bg-amber-950/30 border border-amber-600/30 text-[11px] font-mono text-amber-300 flex items-center justify-between">
+                          <span>Gemini unavailable — rule-based briefing shown.</span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {advisory?.fallback_reason || "Deterministic Fallback Active"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-200 leading-relaxed font-sans">
+                          {advisory?.authority_guidance_en ||
+                            (cyclone
+                              ? `${cyclone.name} (${cyclone.category}) operational scenario data loaded. Synthesizing risk directives...`
+                              : "Operational guidance loading or unavailable for this scenario.")}
+                        </p>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 border-t border-[#1e293b]">
                       <div className="p-3 rounded-xl bg-[#131d31] border border-[#22334e] space-y-1">
@@ -1124,15 +1164,15 @@ export default function AuthorityDashboardPage() {
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center gap-2 text-emerald-300 font-bold text-sm">
                         <DollarSign className="w-5 h-5" />
-                        <span>Bay of Bengal Anticipatory Parametric Disaster Insurance Facility</span>
+                        <span>Bay of Bengal Anticipatory Parametric Disaster Insurance Facility (Simulated Model)</span>
                       </div>
                       <span className="px-2.5 py-1 rounded bg-emerald-950 border border-emerald-700 text-emerald-300 font-mono text-xs font-bold">
-                        {insurance.execution_summary.payout_status}
+                        {insurance.execution_summary.payout_status} (SIMULATED)
                       </span>
                     </div>
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      Replaces sluggish post-disaster loss adjustments with verified, deterministic sensor triggers.
-                      Funds are automatically disbursed <b>pre-landfall</b> to municipal treasury accounts to power evacuation logistics.
+                      Models pre-landfall liquidity release triggered by deterministic physical thresholds rather than post-disaster loss assessments.
+                      Demonstrates how anticipatory financing can model pre-landfall capital allocation for municipal evacuation logistics.
                     </p>
                   </div>
 
@@ -1151,7 +1191,7 @@ export default function AuthorityDashboardPage() {
                     <div className="p-4 rounded-xl bg-[#0c1220] border border-[#1e293b] space-y-1">
                       <span className="text-slate-500 text-[10px] block">ACTIVE TRIGGERS</span>
                       <span className="text-base font-bold text-cyan-300">{insurance.execution_summary.active_triggers_count} / 4 Triggers</span>
-                      <span className="text-[10px] text-slate-400 block">Deterministic Sensor Verified</span>
+                      <span className="text-[10px] text-slate-400 block">Deterministic Threshold Model</span>
                     </div>
                     <div className="p-4 rounded-xl bg-[#0c1220] border border-[#1e293b] space-y-1">
                       <span className="text-slate-500 text-[10px] block">PRIMARY BENEFICIARY</span>
@@ -1227,7 +1267,7 @@ export default function AuthorityDashboardPage() {
                             </span>
                           </h2>
                           <p className="text-xs text-slate-400">
-                            Zero-latency civil protection dissemination across 4 verified vectors
+                            Automated standard-format emergency payload generation across 4 transmission protocols
                           </p>
                           <div className="flex items-center gap-2 pt-1">
                             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold">
@@ -1242,7 +1282,7 @@ export default function AuthorityDashboardPage() {
                         className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow-lg shadow-blue-950 transition cursor-pointer"
                       >
                         <Send className="w-3.5 h-3.5" />
-                        <span>Broadcast All Channels</span>
+                        <span>Generate All Channel Payloads</span>
                       </button>
                     </div>
                   </div>
@@ -1443,16 +1483,46 @@ export default function AuthorityDashboardPage() {
                     <div className="flex items-center justify-between border-b border-[#1e293b] pb-3">
                       <div>
                         <span className="text-xs font-mono text-cyan-400 block uppercase">
-                          GEMINI MULTIMODAL OPERATIONS INTELLIGENCE
+                          {advisory.is_live_ai
+                            ? "GEMINI GROUNDED OPERATIONS INTELLIGENCE"
+                            : "DETERMINISTIC OPERATIONS INTELLIGENCE"}
                         </span>
                         <h2 className="text-lg font-black text-white">
-                          Grounded Pre-Landfall Threat Assessment
+                          {advisory.is_live_ai
+                            ? "Grounded Pre-Landfall Threat Assessment"
+                            : "Rule-Based Pre-Landfall Threat Assessment (Gemini unavailable in this deployment)"}
                         </h2>
                       </div>
-                      <span className="text-xs font-mono text-emerald-400 bg-emerald-950 px-2.5 py-1 rounded border border-emerald-800 font-bold">
-                        Grounding Integrity: Verified
+                      <span className="text-xs font-mono text-cyan-300 bg-slate-900 px-2.5 py-1 rounded border border-slate-700 font-bold">
+                        {advisory.is_live_ai
+                          ? `Live Gemini (${advisory.model || "gemini-2.5-flash"})`
+                          : "Deterministic Mode"}
                       </span>
                     </div>
+
+                    {advisory.is_live_ai && advisory.gemini_briefing ? (
+                      <div className="p-4 rounded-xl bg-cyan-950/30 border border-cyan-500/40 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono text-cyan-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                            <BrainCircuit className="w-3.5 h-3.5" />
+                            Live Gemini AI Operational Synthesis ({advisory.model})
+                          </span>
+                          <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700">
+                            {advisory.grounding_status || "GROUNDED"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-100 leading-relaxed font-sans whitespace-pre-line">
+                          {advisory.gemini_briefing}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-lg bg-amber-950/30 border border-amber-600/30 text-xs font-mono text-amber-300 flex items-center justify-between">
+                        <span>Gemini unavailable — rule-based synthesis shown.</span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {advisory.fallback_reason || "Deterministic Fallback Active"}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="p-4 rounded-xl bg-[#131d31] border border-[#22334e] space-y-2">
                       <span className="text-[10px] font-mono text-cyan-400 font-bold block uppercase">
@@ -1568,10 +1638,10 @@ export default function AuthorityDashboardPage() {
 
                       <div className="p-4 rounded-xl bg-[#131d31] border border-[#22334e] space-y-2">
                         <h4 className="font-bold text-white font-mono text-sm text-emerald-300">
-                          2. Zero Numerical Fabrication Principle
+                          2. Grounded Advisory Architecture
                         </h4>
                         <p className="text-slate-300 leading-relaxed font-sans">
-                          All counts of hospitals, power substations, and inundated highways are computed deterministically via GeoPandas spatial joins. LLM (Gemini 3.7 Flash) strictly generates grounded operational narratives from verified JSON metrics.
+                          All counts of hospitals, power substations, and inundated highways are computed deterministically via GeoPandas spatial joins. Operational narratives are synthesized strictly from verified JSON metrics via the deterministic grounding engine in this deployment.
                         </p>
                       </div>
                     </div>

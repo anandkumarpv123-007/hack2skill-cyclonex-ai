@@ -71,10 +71,13 @@ def generate_surge_inundation_polygon(
     Constructs a deterministic coastal inundation scenario polygon envelope
     along the vulnerable coastal interface around the projected landfall coordinates.
 
-    Inland penetration extent is determined by scenario surge height and coastal slope:
-      Inland Reach (km) = Surge Height (m) / Coastal Slope (~0.0003 for Bay of Bengal deltas)
+    MODELING HEURISTIC DISCLOSURE:
+    Inland penetration reach (surge_height_m / 0.35) is an uncalibrated geometric
+    planar slope screening heuristic (assuming a uniform 0.35 m/km coastal rise for
+    pre-landfall screening). It is NOT an engineering-grade hydrodynamic flood boundary
+    or validated ground truth.
     """
-    # Default coastal slope for Krishna-Godavari coastal plain ~ 0.35m rise per km
+    # Simplified planar coastal slope heuristic for screening (0.35 m rise per km)
     slope_m_per_km = 0.35
     if inland_reach_km is None:
         inland_reach_km = min(25.0, max(2.0, surge_height_m / slope_m_per_km))

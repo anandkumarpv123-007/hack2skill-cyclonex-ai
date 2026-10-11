@@ -53,11 +53,11 @@ export default function HomePage() {
             <span>AI-Assisted Geospatial Intelligence for Coastal Cyclone Disasters</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white max-w-4xl leading-tight">
-            Deterministic Spatial Physics Meets Grounded Multimodal Generative AI.
+            Deterministic Spatial Physics Meets Grounded Generative AI.
           </h1>
           <p className="text-slate-400 text-lg max-w-3xl leading-relaxed">
-            CYCLONEX couples deterministic spatial hazard modeling (GeoPandas, Google Earth Engine)
-            with strictly grounded multimodal generative AI (Gemini 3.7 Flash via Vertex AI).
+            CYCLONEX couples deterministic spatial hazard modeling (GeoPandas, Google Earth Engine / DEM)
+            with strictly grounded generative AI (Gemini 3.7 Flash with deterministic fallback).
             Built to safeguard coastal communities and protect critical infrastructure before cyclone landfall.
           </p>
 
@@ -102,20 +102,20 @@ export default function HomePage() {
                   <p className="text-xs text-slate-400">For DDMAs, SDMAs & Incident Commanders</p>
                 </div>
               </div>
-              <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono">
-                LIVE & READY
+              <span className="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 font-mono">
+                ACTIVE PROTOTYPE
               </span>
             </div>
             <p className="text-sm text-slate-300 leading-relaxed">
               GPU-accelerated MapLibre GL JS vector maps rendering 34/50/64-knot parametric wind cones,
               scenario-based coastal inundation envelopes, critical infrastructure overlays (hospitals,
-              bridges, substations), and Gemini-generated tactical operational briefings.
+              bridges, substations), and tactical operational briefings (deterministic synthesis with Gemini fallback).
             </p>
             <div className="pt-2 flex flex-wrap gap-2 text-xs font-mono text-cyan-300">
               <span className="px-2 py-1 rounded bg-slate-950 border border-slate-800">MapLibre GL JS</span>
               <span className="px-2 py-1 rounded bg-slate-950 border border-slate-800">Recharts</span>
               <span className="px-2 py-1 rounded bg-slate-950 border border-slate-800">GeoPandas sjoin</span>
-              <span className="px-2 py-1 rounded bg-slate-950 border border-slate-800">Gemini Grounded</span>
+              <span className="px-2 py-1 rounded bg-slate-950 border border-slate-800">Grounded Synthesis</span>
             </div>
           </Link>
 
@@ -136,14 +136,14 @@ export default function HomePage() {
                   <p className="text-xs text-slate-400">Low-Bandwidth Bilingual Emergency View</p>
                 </div>
               </div>
-              <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono">
-                LIVE & READY
+              <span className="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 font-mono">
+                ACTIVE PROTOTYPE
               </span>
             </div>
             <p className="text-sm text-slate-300 leading-relaxed">
-              Ultra-lightweight, high-contrast, offline-first interface tailored for coastal citizens.
-              Provides verified plain-language alerts in English and Telugu (తెలుగు) and an algorithmic
-              nearest-safe-shelter locator with hazard-avoidance routing.
+              Ultra-lightweight, high-contrast, low-bandwidth interface tailored for coastal citizens.
+              Provides plain-language alerts in English and Telugu (తెలుగు) and an algorithmic
+              nearest-safe-shelter locator with hazard-clearance checks.
             </p>
             <div className="pt-2 flex flex-wrap gap-2 text-xs font-mono text-rose-300">
               <span className="px-2 py-1 rounded bg-slate-950 border border-slate-800">English + తెలుగు</span>
@@ -159,8 +159,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-slate-950 px-6 py-6 text-center text-xs text-slate-500">
         <p>
-          CYCLONEX • AI-Assisted Geospatial Decision-Support Platform • Architecture Locked &
-          Verified
+          CYCLONEX • AI-Assisted Geospatial Decision-Support Platform • Pre-Landfall Decision Support Prototype
         </p>
       </footer>
     </div>

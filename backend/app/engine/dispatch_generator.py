@@ -5,9 +5,44 @@ and multi-channel emergency dispatch queues for municipal authorities,
 SDMA command centers, cell broadcasts, and public safety feeds.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 import uuid
+import math
+from xml.sax.saxutils import escape as xml_escape
+
+
+CANONICAL_ACTION_INSTRUCTIONS = {
+    "IMMEDIATE_MANDATORY_EVACUATION": (
+        "Execute immediate mandatory coastal evacuation to designated elevated shelters. "
+        "Power utilities prepare for controlled feeder de-energization."
+    ),
+    "PREPARE_SHELTERS_EVACUATE_VULNERABLE": (
+        "Prepare shelters and evacuate vulnerable coastal populations. "
+        "Power utilities prepare for controlled feeder de-energization."
+    ),
+    "RESTRICT_MOVEMENT_SECURE_ASSETS": (
+        "Restrict non-essential movement and secure critical assets. "
+        "Emergency services maintain heightened standby."
+    ),
+    "MONITOR_UPDATES": "Monitor incident bulletins and maintain watch.",
+}
+
+DATA_UNAVAILABLE_INSTRUCTION = (
+    "Risk assessment data unavailable. Verify authoritative assessment and official "
+    "emergency warnings before initiating operational action."
+)
+
+
+def _parse_finite_float(val: Any) -> Optional[float]:
+    """Safely extracts a finite float, rejecting None, booleans, NaN, Inf, and non-numeric strings."""
+    if val is None or isinstance(val, bool):
+        return None
+    try:
+        fval = float(val)
+        return fval if math.isfinite(fval) else None
+    except (ValueError, TypeError, OverflowError):
+        return None
 
 
 def generate_early_warning_dispatches(
@@ -20,45 +55,133 @@ def generate_early_warning_dispatches(
     Constructs CAP v1.2 XML/JSON alerts and multi-channel dispatch feeds
     tailored for municipal commissioners and district disaster managers.
     """
-    storm_name = cyclone_metadata.get("name", "Cyclone")
-    category = cyclone_metadata.get("category", "Severe Cyclonic Storm")
-    peak_wind = cyclone_metadata.get("peak_wind_kmh", 100)
-    landfall = cyclone_metadata.get("landfall_target", "Coastal Andhra Pradesh")
-    surge_m = surge_scenario.get("total_scenario_surge_m", 2.0)
-    
-    district = highest_cvi.get("district", "Coastal District")
-    cvi_score = highest_cvi.get("cvi_score", 0.75)
-    risk_level = highest_cvi.get("risk_level", "High")
+    cyclone_metadata = cyclone_metadata or {}
+    highest_cvi = highest_cvi or {}
+    advisories = advisories or {}
+    surge_scenario = surge_scenario or {}
 
-    urgency = "Immediate" if cvi_score >= 0.60 else "Expected"
-    severity = "Extreme" if cvi_score >= 0.75 else "Severe" if cvi_score >= 0.50 else "Moderate"
+    storm_name = str(cyclone_metadata.get("name") or "Cyclone")
+    category = str(cyclone_metadata.get("category") or "Severe Cyclonic Storm")
+    landfall = str(cyclone_metadata.get("landfall_target") or "Coastal Andhra Pradesh")
+
+    peak_wind_val = _parse_finite_float(cyclone_metadata.get("peak_wind_kmh"))
+    peak_wind = peak_wind_val if peak_wind_val is not None else 0.0
+
+    surge_m_val = _parse_finite_float(surge_scenario.get("total_scenario_surge_m"))
+    surge_m = surge_m_val if surge_m_val is not None else 0.0
+
+    district = str(highest_cvi.get("district") or "Coastal District")
+
+    # 1. Authoritative Action Code (from CVI rankings or advisory engine metadata)
+    raw_action = highest_cvi.get("action_code") or (
+        advisories.get("metrics_cited", {}).get("district_action_code") if isinstance(advisories, dict) else None
+    )
+    valid_action_code = (
+        raw_action if (isinstance(raw_action, str) and raw_action in CANONICAL_ACTION_INSTRUCTIONS) else None
+    )
+
+    # 2. Canonical Risk Level
+    raw_risk = highest_cvi.get("risk_level") or (
+        advisories.get("metrics_cited", {}).get("district_risk_level") if isinstance(advisories, dict) else None
+    )
+    valid_risk_level: Optional[str] = None
+    if isinstance(raw_risk, str):
+        normalized_risk = raw_risk.strip().capitalize()
+        if normalized_risk in {"Extreme", "High", "Moderate", "Low"}:
+            valid_risk_level = normalized_risk
+
+    # 3. Validated Finite CVI Score
+    valid_cvi = _parse_finite_float(highest_cvi.get("cvi_score"))
+    if valid_cvi is None and isinstance(advisories, dict):
+        valid_cvi = _parse_finite_float(advisories.get("metrics_cited", {}).get("highest_cvi_score"))
+
+    # 4. Robust instruction selection without silent downgrades or invented risk
+    if valid_action_code:
+        instruction = CANONICAL_ACTION_INSTRUCTIONS[valid_action_code]
+    elif valid_risk_level:
+        if valid_risk_level == "Extreme":
+            instruction = CANONICAL_ACTION_INSTRUCTIONS["IMMEDIATE_MANDATORY_EVACUATION"]
+        elif valid_risk_level == "High":
+            instruction = CANONICAL_ACTION_INSTRUCTIONS["PREPARE_SHELTERS_EVACUATE_VULNERABLE"]
+        elif valid_risk_level == "Moderate":
+            instruction = CANONICAL_ACTION_INSTRUCTIONS["RESTRICT_MOVEMENT_SECURE_ASSETS"]
+        else:
+            instruction = CANONICAL_ACTION_INSTRUCTIONS["MONITOR_UPDATES"]
+    elif valid_cvi is not None:
+        if valid_cvi >= 0.70:
+            instruction = CANONICAL_ACTION_INSTRUCTIONS["IMMEDIATE_MANDATORY_EVACUATION"]
+        elif valid_cvi >= 0.50:
+            instruction = CANONICAL_ACTION_INSTRUCTIONS["PREPARE_SHELTERS_EVACUATE_VULNERABLE"]
+        elif valid_cvi >= 0.30:
+            instruction = CANONICAL_ACTION_INSTRUCTIONS["RESTRICT_MOVEMENT_SECURE_ASSETS"]
+        else:
+            instruction = CANONICAL_ACTION_INSTRUCTIONS["MONITOR_UPDATES"]
+    else:
+        instruction = DATA_UNAVAILABLE_INSTRUCTION
+
+    # 5. Urgency & Severity according to CAP v1.2 standard
+    if valid_risk_level == "Extreme" or (valid_cvi is not None and valid_cvi >= 0.70):
+        urgency = "Immediate"
+        severity = "Extreme"
+        color_code = "RED"
+        risk_level_display = "Extreme"
+    elif valid_risk_level == "High" or (valid_cvi is not None and valid_cvi >= 0.50):
+        urgency = "Immediate" if (valid_cvi is not None and valid_cvi >= 0.60) else "Expected"
+        severity = "Severe"
+        color_code = "ORANGE"
+        risk_level_display = "High"
+    elif valid_risk_level == "Moderate" or (valid_cvi is not None and valid_cvi >= 0.30):
+        urgency = "Expected"
+        severity = "Moderate"
+        color_code = "ORANGE"
+        risk_level_display = "Moderate"
+    elif valid_risk_level == "Low" or (valid_cvi is not None and valid_cvi < 0.30):
+        urgency = "Expected"
+        severity = "Minor"
+        color_code = "YELLOW"
+        risk_level_display = "Low"
+    else:
+        urgency = "Unknown"
+        severity = "Unknown"
+        color_code = "UNKNOWN"
+        risk_level_display = "Unknown"
+
+    cvi_display = str(round(valid_cvi, 3)) if valid_cvi is not None else "UNAVAILABLE"
+
     alert_id = f"IN-APSDMA-CYCLONEX-{uuid.uuid4().hex[:8].upper()}"
     timestamp_iso = datetime.now(timezone.utc).isoformat()
+    event_name = "Severe Cyclone Storm Surge & Wind Threat"
+    headline_text = f"EMERGENCY ADVISORY: {storm_name.upper()} PRE-LANDFALL ACTION FOR {district.upper()}"
+    description_text = (
+        f"Severe winds up to {peak_wind} km/h and scenario surge up to {surge_m}m threatening {landfall}. "
+        f"Composite Vulnerability Index: {cvi_display} ({risk_level_display})."
+    )
+    area_desc = f"{district}, Andhra Pradesh Coastal Sector"
 
-    # Standard Common Alerting Protocol (CAP v1.2) XML payload
+    # Standard Common Alerting Protocol (CAP v1.2) XML payload with XML-escaped dynamic values
     cap_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
-  <identifier>{alert_id}</identifier>
+  <identifier>{xml_escape(alert_id)}</identifier>
   <sender>cyclonex.apsdma.gov.in</sender>
-  <sent>{timestamp_iso}</sent>
+  <sent>{xml_escape(timestamp_iso)}</sent>
   <status>Actual</status>
   <msgType>Alert</msgType>
   <scope>Public</scope>
   <info>
     <category>Met</category>
-    <event>Severe Cyclone Storm Surge &amp; Wind Threat</event>
-    <urgency>{urgency}</urgency>
-    <severity>{severity}</severity>
+    <event>{xml_escape(event_name)}</event>
+    <urgency>{xml_escape(urgency)}</urgency>
+    <severity>{xml_escape(severity)}</severity>
     <certainty>Observed</certainty>
     <eventCode>
       <valueName>IMD_COLOR_CODE</valueName>
-      <value>{'RED' if severity == 'Extreme' else 'ORANGE'}</value>
+      <value>{xml_escape(color_code)}</value>
     </eventCode>
-    <headline>EMERGENCY ADVISORY: {storm_name.upper()} PRE-LANDFALL ACTION FOR {district.upper()}</headline>
-    <description>Severe winds up to {peak_wind} km/h and scenario surge up to {surge_m}m threatening {landfall}. Composite Vulnerability Index: {cvi_score} ({risk_level}).</description>
-    <instruction>Execute immediate mandatory coastal evacuation to designated elevated shelters. Power utilities prepare for controlled feeder de-energization.</instruction>
+    <headline>{xml_escape(headline_text)}</headline>
+    <description>{xml_escape(description_text)}</description>
+    <instruction>{xml_escape(instruction)}</instruction>
     <area>
-      <areaDesc>{district}, Andhra Pradesh Coastal Sector</areaDesc>
+      <areaDesc>{xml_escape(area_desc)}</areaDesc>
     </area>
   </info>
 </alert>"""
@@ -75,8 +198,8 @@ def generate_early_warning_dispatches(
                 "urgency": urgency,
                 "severity": severity,
                 "target_district": district,
-                "cvi_score": cvi_score,
-                "directive": advisories.get("authority_guidance_en", "")[:300] + "...",
+                "cvi_score": valid_cvi if valid_cvi is not None else 0.0,
+                "directive": advisories.get("authority_guidance_en", "")[:300] + "..." if isinstance(advisories, dict) and advisories.get("authority_guidance_en") else instruction,
             },
             "status": "QUEUED_FOR_DISPATCH",
         },
@@ -130,11 +253,13 @@ def generate_early_warning_dispatches(
             "scope": "Public",
             "info": {
                 "category": "Met",
-                "event": "Severe Cyclone Storm Surge & Wind Threat",
+                "event": event_name,
                 "urgency": urgency,
                 "severity": severity,
-                "headline": f"EMERGENCY ADVISORY: {storm_name.upper()} ({district.upper()})",
-                "areaDesc": district,
+                "headline": headline_text,
+                "description": description_text,
+                "instruction": instruction,
+                "areaDesc": area_desc,
             },
         },
         "channels": channels,

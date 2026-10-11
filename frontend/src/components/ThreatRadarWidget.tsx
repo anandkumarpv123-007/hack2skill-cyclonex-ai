@@ -140,7 +140,7 @@ export default function ThreatRadarWidget({
               CIRCULAR THREAT RADAR
             </h3>
             <span className="text-[10px] text-slate-400 font-mono">
-              Live Multi-Hazard Sensor Fusion
+              Multi-Hazard Scenario Assessment
             </span>
           </div>
         </div>
