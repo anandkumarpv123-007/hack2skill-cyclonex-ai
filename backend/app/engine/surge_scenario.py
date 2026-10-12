@@ -11,8 +11,9 @@ It is explicitly NOT a calibrated numerical hydrodynamic wave-action PDE solver 
 
 from typing import Dict, Any, Optional
 import numpy as np
-from shapely.geometry import Point, Polygon, LineString, mapping
+from shapely.geometry import Point, Polygon, LineString, mapping, box
 from shapely.ops import unary_union
+from app.geospatial.coastline import AP_COASTLINE, KM_PER_DEGREE
 
 
 STANDARD_PRESSURE_HPA = 1013.25
@@ -83,22 +84,25 @@ def generate_surge_inundation_polygon(
         inland_reach_km = min(25.0, max(2.0, surge_height_m / slope_m_per_km))
 
     # Metric to degree conversion (~111 km/deg lat)
-    deg_lat_span = (coastal_span_km / 2.0) / 111.0
-    deg_lon_reach = inland_reach_km / (111.0 * np.cos(np.radians(landfall_lat)))
+    deg_lat_span = (coastal_span_km / 2.0) / KM_PER_DEGREE
+    deg_reach = inland_reach_km / KM_PER_DEGREE
+    lat_band = box(-180.0, landfall_lat - deg_lat_span, 180.0, landfall_lat + deg_lat_span)
 
-    # In Bay of Bengal (East Coast of India), the coast faces East; inland is to the West (decreasing lon)
-    p_north_coast = (landfall_lon, landfall_lat + deg_lat_span)
-    p_south_coast = (landfall_lon, landfall_lat - deg_lat_span)
-    p_south_inland = (landfall_lon - deg_lon_reach, landfall_lat - deg_lat_span)
-    p_north_inland = (landfall_lon - deg_lon_reach, landfall_lat + deg_lat_span)
-
-    inundation_poly = Polygon([
-        p_north_coast,
-        p_south_coast,
-        p_south_inland,
-        p_north_inland,
-        p_north_coast,
-    ])
+    # Envelope follows the actual coastline: every point within the inland reach of the
+    # coast segment inside the coastal band around landfall. (The coast is not north-south
+    # everywhere, e.g. Visakhapatnam runs south-west to north-east.)
+    coast_segment = AP_COASTLINE.intersection(lat_band)
+    if not coast_segment.is_empty:
+        inundation_poly = coast_segment.buffer(deg_reach).intersection(lat_band)
+    else:
+        # Landfall outside the modeled AP coastline: fall back to a band west of landfall.
+        deg_lon_reach = inland_reach_km / (KM_PER_DEGREE * np.cos(np.radians(landfall_lat)))
+        inundation_poly = Polygon([
+            (landfall_lon, landfall_lat + deg_lat_span),
+            (landfall_lon, landfall_lat - deg_lat_span),
+            (landfall_lon - deg_lon_reach, landfall_lat - deg_lat_span),
+            (landfall_lon - deg_lon_reach, landfall_lat + deg_lat_span),
+        ])
 
     return {
         "model_type": "terrain_elevation_scenario_simulation",

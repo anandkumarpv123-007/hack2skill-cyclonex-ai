@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Optional, Tuple
 import os
 import re
 import math
+import time
 from app.core.config import settings
 from app.core.logging import logger
 from app.ai.prompt_templates import SYSTEM_GROUNDING_DIRECTIVE, USER_GROUNDING_PROMPT_TEMPLATE
@@ -140,19 +141,64 @@ def get_grounding_status(text: Optional[str], peak_wind: Any, surge_h: Any, is_l
         return "DETERMINISTIC_RULE_TEMPLATE"
 
 
+# google-genai HttpOptions.timeout is expressed in MILLISECONDS (not seconds).
+GEMINI_TIMEOUT_MS = 20_000
+
+# Successful live briefings are cached briefly so repeated dashboard loads during a demo
+# do not exhaust the free-tier request quota. Fallbacks are never cached.
+LIVE_BRIEFING_CACHE_TTL_S = 600
+
+
+def classify_gemini_error(exc: BaseException) -> Tuple[str, str]:
+    """
+    Maps a Gemini SDK / transport exception to (fallback_reason, safe_detail).
+    safe_detail contains only the exception class name and HTTP status code, never the API key
+    or request payload, so it can be returned to the client and logged.
+    """
+    name = type(exc).__name__
+    code = getattr(exc, "code", None)
+    status = str(getattr(exc, "status", "") or "")
+    message = str(exc)
+    detail = f"{name}" + (f" (HTTP {code}{' ' + status if status else ''})" if code else "")
+
+    text = f"{status} {message}".upper()
+    if name in {"ReadTimeout", "ConnectTimeout", "WriteTimeout", "PoolTimeout", "TimeoutException", "TimeoutError"} \
+            or code == 504 or "DEADLINE_EXCEEDED" in text or "TIMED OUT" in text or "TIMEOUT" in text:
+        return "REQUEST_TIMEOUT", detail
+    if code == 429 or "RESOURCE_EXHAUSTED" in text:
+        return "QUOTA_EXCEEDED", detail
+    if code in (401, 403) or "API_KEY_INVALID" in text or "API KEY NOT VALID" in text or "PERMISSION_DENIED" in text:
+        return "INVALID_OR_UNAUTHORIZED_API_KEY", detail
+    if code == 404 or "NOT_FOUND" in text:
+        return "MODEL_UNAVAILABLE", detail
+    if code == 400 or "INVALID_ARGUMENT" in text or "FAILED_PRECONDITION" in text:
+        return "INVALID_REQUEST", detail
+    if name in {"ConnectError", "ProxyError", "RemoteProtocolError", "NetworkError"}:
+        return "NETWORK_UNREACHABLE", detail
+    if code is not None and int(code) >= 500:
+        return "GEMINI_SERVER_ERROR", detail
+    return "API_COMMUNICATION_ERROR", detail
+
+
 class GroundedAdvisoryEngine:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY
         self.model_name = settings.GEMINI_MODEL or "gemini-2.5-flash"
+        self.last_fallback_detail: Optional[str] = None
+        self.last_fallback_reason: Optional[str] = None
+        self._live_cache: Dict[str, Tuple[float, str]] = {}
 
     def _call_gemini(self, prompt: str) -> Tuple[Optional[str], Optional[str]]:
         """
         Attempts to invoke Gemini Developer API via google-genai SDK using GEMINI_API_KEY.
-        Returns (response_text, fallback_reason).
-        Enforces a 15-second timeout and handles all exceptions safely without crashing.
+        Returns (response_text, fallback_reason). The exception class / HTTP status of the
+        most recent failure is stored in self.last_fallback_detail (no secrets).
+        Enforces a 20-second timeout and handles all exceptions safely without crashing.
         """
+        self.last_fallback_detail = None
         api_key = self.api_key or os.environ.get("GEMINI_API_KEY", "")
         if not api_key:
+            self.last_fallback_detail = "GEMINI_API_KEY is empty in the backend environment"
             return None, "GEMINI_API_KEY_NOT_CONFIGURED"
 
         try:
@@ -161,36 +207,46 @@ class GroundedAdvisoryEngine:
 
             client = genai.Client(
                 api_key=api_key,
-                http_options=types.HttpOptions(timeout=15.0),
+                http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS),
             )
-            config = types.GenerateContentConfig(
+            config_kwargs: Dict[str, Any] = dict(
                 system_instruction=SYSTEM_GROUNDING_DIRECTIVE,
                 temperature=0.2,
-                max_output_tokens=1024,
+                max_output_tokens=2048,
             )
+            # Flash models spend output tokens on hidden "thinking" by default, which can
+            # truncate or empty the visible briefing and add latency. Disable it for Flash.
+            if self.model_name.lower().startswith("gemini-2.5-flash"):
+                config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
             response = client.models.generate_content(
                 model=self.model_name,
                 contents=prompt,
-                config=config,
+                config=types.GenerateContentConfig(**config_kwargs),
             )
-            if response and response.text:
-                return response.text.strip(), None
-            else:
-                return None, "EMPTY_MODEL_RESPONSE"
+            text = getattr(response, "text", None) if response else None
+            if text and text.strip():
+                return text.strip(), None
+            self.last_fallback_detail = "Model returned no text (possibly blocked or truncated)"
+            return None, "EMPTY_MODEL_RESPONSE"
         except Exception as e:
-            err_str = str(e)
-            logger.warning(f"Gemini API invocation failed ({type(e).__name__}): {err_str}")
-            if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str:
-                reason = "QUOTA_EXCEEDED"
-            elif "DEADLINE_EXCEEDED" in err_str or "timeout" in err_str.lower():
-                reason = "REQUEST_TIMEOUT"
-            elif "INVALID_ARGUMENT" in err_str or "API_KEY_INVALID" in err_str:
-                reason = "INVALID_API_KEY"
-            elif "NOT_FOUND" in err_str or "model" in err_str.lower():
-                reason = "MODEL_UNAVAILABLE"
-            else:
-                reason = "API_COMMUNICATION_ERROR"
+            reason, detail = classify_gemini_error(e)
+            self.last_fallback_detail = detail
+            logger.warning(f"Gemini API invocation failed: reason={reason} detail={detail}")
             return None, reason
+
+    def _call_gemini_cached(self, prompt: str) -> Tuple[Optional[str], Optional[str], bool]:
+        """Returns (text, fallback_reason, served_from_cache). Only successful live text is cached."""
+        now = time.time()
+        cached = self._live_cache.get(prompt)
+        if cached and now - cached[0] < LIVE_BRIEFING_CACHE_TTL_S:
+            self.last_fallback_detail = None
+            self.last_fallback_reason = None
+            return cached[1], None, True
+        text, reason = self._call_gemini(prompt)
+        self.last_fallback_reason = reason
+        if text:
+            self._live_cache[prompt] = (now, text)
+        return text, reason, False
 
     def generate_advisory(
         self,
@@ -297,8 +353,9 @@ class GroundedAdvisoryEngine:
             cvi_summary=cvi_lines,
         )
 
-        ai_response_text, fallback_reason = self._call_gemini(user_prompt)
+        ai_response_text, fallback_reason, served_from_cache = self._call_gemini_cached(user_prompt)
         is_live_ai = ai_response_text is not None
+        fallback_detail = None if is_live_ai else self.last_fallback_detail
 
         # Synchronize authoritative action directive directly with CVI engine risk classification
         if risk_level == "Extreme" or action_code == "IMMEDIATE_MANDATORY_EVACUATION":
@@ -407,6 +464,8 @@ class GroundedAdvisoryEngine:
             "grounding_integrity_verified": grounding_verified,
             "grounding_status": grounding_status,
             "fallback_reason": fallback_reason,
+            "fallback_detail": fallback_detail,
+            "served_from_cache": served_from_cache,
             "metrics_cited": {
                 "cyclone_name": cyclone_name,
                 "peak_wind_kmh": peak_wind,

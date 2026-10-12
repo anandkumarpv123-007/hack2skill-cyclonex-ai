@@ -25,7 +25,8 @@ def test_evaluate_parametric_insurance_triggers():
     # Surge 2.2m >= 2.0m (surge trigger met)
     # Rain 210mm >= 200mm AND CVI 0.72 >= 0.70 (compound trigger met)
     # Released: 15 (tranche 1) + 10 (tranche 3) + 5 (tranche 4) = 30 Cr
-    assert summary["payout_status"] == "LIQUIDITY_RELEASED_PRE_LANDFALL"
+    assert summary["payout_status"] == "MODELED_RELEASE_PRE_LANDFALL"
+    assert res["is_simulated"] is True
     assert summary["total_released_inr_cr"] == 30.0
     assert summary["active_triggers_count"] == 3
     assert len(disbursements) == 3

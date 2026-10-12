@@ -117,14 +117,14 @@ def evaluate_parametric_insurance(
     return {
         "facility_metadata": {
             "policy_name": "Bay of Bengal Anticipatory Parametric Disaster Facility",
-            "underwriter": "Global Climate Insurance Consortium / State Disaster Pool",
+            "underwriter": "Illustrative model only — no real insurer, policy or state pool",
             "insured_state": "Andhra Pradesh, India",
             "total_facility_pool_inr_cr": total_facility_pool_inr_cr,
             "total_facility_pool_usd_m": round(total_facility_pool_inr_cr / 8.35, 2),
             "evaluated_at": datetime.now(timezone.utc).isoformat(),
         },
         "execution_summary": {
-            "payout_status": "LIQUIDITY_RELEASED_PRE_LANDFALL" if total_released_cr > 0 else "POLICY_STANDBY",
+            "payout_status": "MODELED_RELEASE_PRE_LANDFALL" if total_released_cr > 0 else "MODEL_STANDBY",
             "total_released_inr_cr": round(total_released_cr, 2),
             "total_released_usd_m": round(total_released_cr / 8.35, 2),
             "payout_percentage": payout_percentage,
@@ -133,4 +133,9 @@ def evaluate_parametric_insurance(
         },
         "triggers": triggers,
         "disbursements": disbursements,
+        "is_simulated": True,
+        "disclaimer": (
+            "Simulated parametric finance model for demonstration. No policy exists, "
+            "no funds are held or released, and no payment is made to any organisation."
+        ),
     }

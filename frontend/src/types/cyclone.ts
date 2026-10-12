@@ -185,6 +185,8 @@ export interface ParametricInsurance {
     amount_cr: number;
     purpose: string;
   }>;
+  is_simulated?: boolean;
+  disclaimer?: string;
 }
 
 export interface EarlyWarningDispatches {
@@ -210,6 +212,8 @@ export interface AdvisoryData {
   grounding_integrity_verified: boolean;
   grounding_status?: string;
   fallback_reason?: string | null;
+  fallback_detail?: string | null;
+  served_from_cache?: boolean;
   metrics_cited: {
     cyclone_name: string;
     peak_wind_kmh: number;

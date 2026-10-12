@@ -6,7 +6,9 @@ import pandas
 import shapely
 from fastapi import APIRouter
 from app.core.config import settings
-from app.schemas.health import HealthResponse, DeterministicStackInfo
+import os
+from app.schemas.health import HealthResponse, DeterministicStackInfo, AIRuntimeInfo
+from app.ai.vertex_gemini import advisory_engine
 
 router = APIRouter()
 
@@ -34,4 +36,11 @@ def get_health() -> HealthResponse:
         data_source_mode=settings.DATA_SOURCE_MODE,
         milestone="Milestone 6: Pre-Landfall Anticipatory Action Prototype (Simulated Data Mode)",
         deterministic_stack=stack_info,
+        ai_runtime=AIRuntimeInfo(
+            gemini_api_key_configured=bool(settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")),
+            gemini_model=advisory_engine.model_name,
+            last_gemini_fallback_reason=advisory_engine.last_fallback_reason,
+            last_gemini_fallback_detail=advisory_engine.last_fallback_detail,
+            earth_engine_live=False,
+        ),
     )

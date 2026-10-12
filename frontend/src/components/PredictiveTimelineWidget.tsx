@@ -46,7 +46,7 @@ export default function PredictiveTimelineWidget({
       pressure: minPressureHpa - 4,
       distCoast: 38,
       stage: "Pre-Landfall Eyewall Gale",
-      milestone: "Destructive winds exceed 100 km/h across ports. Mandatory zero-casualty evacuation finalized.",
+      milestone: "Destructive winds exceed 100 km/h across ports. Target: mandatory evacuation completed (zero-casualty objective).",
       severity: "EXTREME",
     },
     {

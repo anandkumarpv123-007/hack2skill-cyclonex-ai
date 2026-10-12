@@ -556,9 +556,19 @@ export default function AuthorityDashboardPage() {
                             <span className="text-[10px] font-mono text-cyan-300 font-bold uppercase tracking-wider">
                               Live Gemini AI Synthesis ({advisory.model})
                             </span>
-                            <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700">
-                              {advisory.grounding_status || "GROUNDED"}
-                            </span>
+                            <span
+                            className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
+                              advisory.grounding_integrity_verified
+                                ? "text-emerald-400 bg-emerald-950/80 border-emerald-700"
+                                : "text-amber-300 bg-amber-950/60 border-amber-700"
+                            }`}
+                            title={advisory.grounding_status || ""}
+                          >
+                            {advisory.grounding_integrity_verified
+                              ? "✓ Wind & surge figures match engine data"
+                              : "⚠ Figures not auto-verified — check against engine data"}
+                            {advisory.served_from_cache ? " · cached" : ""}
+                          </span>
                           </div>
                           <p className="text-xs text-slate-100 leading-relaxed font-sans whitespace-pre-line">
                             {advisory.gemini_briefing}
@@ -579,6 +589,7 @@ export default function AuthorityDashboardPage() {
                           <span>Gemini unavailable — rule-based briefing shown.</span>
                           <span className="text-[10px] text-slate-400 font-mono">
                             {advisory?.fallback_reason || "Deterministic Fallback Active"}
+                            {advisory?.fallback_detail ? ` · ${advisory.fallback_detail}` : ""}
                           </span>
                         </div>
                         <p className="text-xs text-slate-200 leading-relaxed font-sans">
@@ -1174,6 +1185,10 @@ export default function AuthorityDashboardPage() {
                       Models pre-landfall liquidity release triggered by deterministic physical thresholds rather than post-disaster loss assessments.
                       Demonstrates how anticipatory financing can model pre-landfall capital allocation for municipal evacuation logistics.
                     </p>
+                    <p className="text-[11px] font-mono text-amber-300 bg-amber-950/30 border border-amber-700/40 rounded px-2 py-1">
+                      {insurance.disclaimer ||
+                        "Simulated model only — no policy exists, no funds are held or released, and no payment is made."}
+                    </p>
                   </div>
 
                   {/* Summary KPIs */}
@@ -1184,7 +1199,7 @@ export default function AuthorityDashboardPage() {
                       <span className="text-[10px] text-slate-400 block">${insurance.facility_metadata.total_facility_pool_usd_m}M USD Equivalent</span>
                     </div>
                     <div className="p-4 rounded-xl bg-[#0c1220] border border-[#1e293b] space-y-1">
-                      <span className="text-slate-500 text-[10px] block">PRE-LANDFALL RELEASE</span>
+                      <span className="text-slate-500 text-[10px] block">MODELED PRE-LANDFALL RELEASE</span>
                       <span className="text-base font-bold text-emerald-400">₹{insurance.execution_summary.total_released_inr_cr} Crore</span>
                       <span className="text-[10px] text-emerald-300 block">{insurance.execution_summary.payout_percentage}% Drawdown</span>
                     </div>
@@ -1239,7 +1254,7 @@ export default function AuthorityDashboardPage() {
 
                           <div className="flex items-center justify-between text-xs font-mono pt-1 border-t border-[#1e293b]">
                             <span className="text-slate-400">Allocated: ₹{t.allocated_cr} Cr</span>
-                            <span className="text-emerald-400 font-bold">Released: ₹{t.released_cr} Cr</span>
+                            <span className="text-emerald-400 font-bold">Modeled release: ₹{t.released_cr} Cr</span>
                           </div>
                         </div>
                       ))}
@@ -1315,7 +1330,7 @@ export default function AuthorityDashboardPage() {
                             <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
                               isSent ? "bg-emerald-900 text-emerald-200 border border-emerald-600" : "bg-cyan-950 text-cyan-300 border border-cyan-800"
                             }`}>
-                              {isSent ? "TRANSMITTED" : ch.status}
+                              {isSent ? "PAYLOAD GENERATED · NOT SENT" : ch.status}
                             </span>
                           </div>
 
@@ -1413,7 +1428,7 @@ export default function AuthorityDashboardPage() {
 
                           <div className="pt-2 border-t border-[#1e293b] flex items-center justify-between">
                             <span className="text-[10px] font-mono text-slate-400">
-                              {isSent ? "Status: Transmitted & Logged" : "Queue: Ready"}
+                              {isSent ? "Simulated payload generated — not transmitted" : "Simulation only — nothing is sent"}
                             </span>
                             <button
                               onClick={() => handleSimulateDispatch(ch.channel_id)}
@@ -1490,7 +1505,7 @@ export default function AuthorityDashboardPage() {
                         <h2 className="text-lg font-black text-white">
                           {advisory.is_live_ai
                             ? "Grounded Pre-Landfall Threat Assessment"
-                            : "Rule-Based Pre-Landfall Threat Assessment (Gemini unavailable in this deployment)"}
+                            : "Rule-Based Pre-Landfall Threat Assessment (Gemini unavailable for this request)"}
                         </h2>
                       </div>
                       <span className="text-xs font-mono text-cyan-300 bg-slate-900 px-2.5 py-1 rounded border border-slate-700 font-bold">
@@ -1507,8 +1522,18 @@ export default function AuthorityDashboardPage() {
                             <BrainCircuit className="w-3.5 h-3.5" />
                             Live Gemini AI Operational Synthesis ({advisory.model})
                           </span>
-                          <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700">
-                            {advisory.grounding_status || "GROUNDED"}
+                          <span
+                            className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
+                              advisory.grounding_integrity_verified
+                                ? "text-emerald-400 bg-emerald-950/80 border-emerald-700"
+                                : "text-amber-300 bg-amber-950/60 border-amber-700"
+                            }`}
+                            title={advisory.grounding_status || ""}
+                          >
+                            {advisory.grounding_integrity_verified
+                              ? "✓ Wind & surge figures match engine data"
+                              : "⚠ Figures not auto-verified — check against engine data"}
+                            {advisory.served_from_cache ? " · cached" : ""}
                           </span>
                         </div>
                         <p className="text-xs text-slate-100 leading-relaxed font-sans whitespace-pre-line">
@@ -1520,6 +1545,7 @@ export default function AuthorityDashboardPage() {
                         <span>Gemini unavailable — rule-based synthesis shown.</span>
                         <span className="text-[10px] text-slate-400 font-mono">
                           {advisory.fallback_reason || "Deterministic Fallback Active"}
+                          {advisory.fallback_detail ? ` · ${advisory.fallback_detail}` : ""}
                         </span>
                       </div>
                     )}

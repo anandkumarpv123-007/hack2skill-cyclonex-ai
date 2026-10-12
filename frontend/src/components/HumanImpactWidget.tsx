@@ -42,7 +42,7 @@ export default function HumanImpactWidget({
         </div>
 
         <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded font-bold">
-          ZERO-CASUALTY PROTOCOL ACTIVE
+          ZERO-CASUALTY OBJECTIVE
         </span>
       </div>
 

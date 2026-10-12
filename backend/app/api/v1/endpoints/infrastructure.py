@@ -73,6 +73,7 @@ async def get_nearby_shelters(
             "lon": s["lon"],
             "capacity": s.get("properties", {}).get("capacity", 500),
             "current_occupancy": s.get("properties", {}).get("current_occupancy", 0),
+            "elevation_m": s.get("properties", {}).get("elevation_m") or s.get("elevation_m") or 3.5,
         }
         for s in all_shelters
         if s.get("lat") and s.get("lon")
@@ -87,6 +88,7 @@ async def get_nearby_shelters(
 
     surge_poly = None
     wind_64_poly = None
+    surge_height = None
     if track:
         surge_calc = calculate_scenario_surge_height(
             central_pressure_hpa=track.min_pressure_hpa,
@@ -98,6 +100,7 @@ async def get_nearby_shelters(
             surge_height_m=surge_calc["total_scenario_surge_m"],
         )
         surge_poly = surge_inundation.get("shapely")
+        surge_height = surge_calc["total_scenario_surge_m"]
 
         swaths = generate_wind_swaths([wp.model_dump() for wp in track.waypoints])
         wind_64_poly = swaths.get("swath_64kt", {}).get("shapely")
@@ -109,6 +112,7 @@ async def get_nearby_shelters(
         surge_polygon=surge_poly,
         wind_64kt_polygon=wind_64_poly,
         limit=limit,
+        surge_height_m=surge_height,
     )
 
     return {

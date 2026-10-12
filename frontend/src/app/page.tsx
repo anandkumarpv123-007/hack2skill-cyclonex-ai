@@ -109,7 +109,7 @@ export default function HomePage() {
             <p className="text-sm text-slate-300 leading-relaxed">
               GPU-accelerated MapLibre GL JS vector maps rendering 34/50/64-knot parametric wind cones,
               scenario-based coastal inundation envelopes, critical infrastructure overlays (hospitals,
-              bridges, substations), and tactical operational briefings (deterministic synthesis with Gemini fallback).
+              bridges, substations), and operational briefings written by Gemini from the engine's verified data, with a rule-based fallback.
             </p>
             <div className="pt-2 flex flex-wrap gap-2 text-xs font-mono text-cyan-300">
               <span className="px-2 py-1 rounded bg-slate-950 border border-slate-800">MapLibre GL JS</span>

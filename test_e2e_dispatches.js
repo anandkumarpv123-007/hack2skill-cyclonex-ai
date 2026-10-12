@@ -114,9 +114,9 @@ async function testDispatchesTab() {
 
     const transmittedStatusCount = await page.evaluate(() => {
       const badges = Array.from(document.querySelectorAll("span"));
-      return badges.filter(b => b.textContent?.trim() === "TRANSMITTED").length;
+      return badges.filter(b => b.textContent?.trim() === "PAYLOAD GENERATED · NOT SENT").length;
     });
-    console.log("Channels with TRANSMITTED status:", transmittedStatusCount);
+    console.log("Channels with simulated payload generated:", transmittedStatusCount);
 
     // Test expanding technical inspector
     console.log("6. Testing Technical Inspector toggle...");

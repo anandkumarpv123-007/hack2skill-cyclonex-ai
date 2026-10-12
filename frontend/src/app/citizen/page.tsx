@@ -135,6 +135,7 @@ export default function CitizenPortalPage() {
   const [cyclone, setCyclone] = useState<CycloneTrack | null>(null);
   const [advisory, setAdvisory] = useState<AdvisoryData | null>(null);
   const [shelters, setShelters] = useState<ShelterCandidate[]>([]);
+  const [searchOrigin, setSearchOrigin] = useState<{ lat: number; lon: number } | null>(null);
   const [selectedLocation, setSelectedLocation] = useState(MICHAUNG_LOCATIONS[0]);
   const [customLat, setCustomLat] = useState<string>("15.865");
   const [customLon, setCustomLon] = useState<string>("80.505");
@@ -238,6 +239,7 @@ export default function CitizenPortalPage() {
     try {
       const res = await fetchNearbyShelters(lat, lon, 4, scenarioId);
       setShelters(res.nearest_shelters || []);
+      setSearchOrigin({ lat, lon });
     } catch (e) {
       console.error("Failed to load nearby shelters:", e);
       // Keep previous shelters on network error if available
@@ -774,15 +776,29 @@ export default function CitizenPortalPage() {
 
                   {/* Directions and Helpline Quick Links */}
                   <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${s.lat || 15.85},${s.lon || 80.51}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-1.5 px-2 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-800/80 text-cyan-300 text-[11px] font-bold text-center flex items-center justify-center gap-1 transition"
-                    >
-                      <Compass className="w-3.5 h-3.5" />
-                      <span>{t.directions}</span>
-                    </a>
+                    {!isSurgeCompromised && Number.isFinite(s.lat) && Number.isFinite(s.lon) ? (
+                      <a
+                        href={
+                          `https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=${s.lat},${s.lon}` +
+                          (searchOrigin ? `&origin=${searchOrigin.lat},${searchOrigin.lon}` : "")
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={
+                          locale === "te"
+                            ? "Google Maps మార్గం ముంపు ప్రాంతాలను తప్పించకపోవచ్చు. అధికారుల సూచనలు పాటించండి."
+                            : "Route by Google Maps — it may not avoid flooded roads. Follow official instructions."
+                        }
+                        className="flex-1 py-1.5 px-2 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-800/80 text-cyan-300 text-[11px] font-bold text-center flex items-center justify-center gap-1 transition"
+                      >
+                        <Compass className="w-3.5 h-3.5" />
+                        <span>{t.directions} · Google Maps</span>
+                      </a>
+                    ) : (
+                      <span className="flex-1 py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-500 text-[11px] font-bold text-center">
+                        {locale === "te" ? "మార్గం నిలిపివేయబడింది (ముంపు)" : "Directions disabled (surge zone)"}
+                      </span>
+                    )}
                     <a
                       href="tel:1070"
                       className="py-1.5 px-3 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 text-[11px] font-bold flex items-center justify-center gap-1 transition"
@@ -795,6 +811,13 @@ export default function CitizenPortalPage() {
               );
             })}
           </div>
+          {shelters.length > 0 && (
+            <p className="text-[10px] text-slate-500 leading-snug pt-1">
+              {locale === "te"
+                ? "దూరం సరళ రేఖ దూరం. Google Maps మార్గం ముంపు రహదారులను తప్పించకపోవచ్చు — అధికారుల సూచనలు పాటించండి."
+                : "Distances are straight-line. Google Maps routes may not avoid flooded roads — always follow official instructions."}
+            </p>
+          )}
         </section>
 
         {/* Low-Bandwidth SMS Broadcast Mode (P2.18 for 2G Basic Phones) */}

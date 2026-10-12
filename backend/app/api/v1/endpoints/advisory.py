@@ -5,6 +5,7 @@ Integrates the deterministic ground truth matrix with Google Gemini (gemini-2.5-
 
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Body
+from starlette.concurrency import run_in_threadpool
 from app.api.v1.endpoints.risk_analysis import evaluate_risk
 from app.ai.vertex_gemini import advisory_engine
 from app.engine.dispatch_generator import generate_early_warning_dispatches
@@ -29,7 +30,11 @@ async def generate_cyclone_advisory(
 
     # 2. Synthesize grounded advisory
     try:
-        advisory = advisory_engine.generate_advisory(ground_truth, target_district=target_district)
+        # The Gemini call is blocking network I/O (up to the SDK timeout); run it off the event loop
+        # so other dashboard requests are not frozen while the briefing is generated.
+        advisory = await run_in_threadpool(
+            advisory_engine.generate_advisory, ground_truth, target_district=target_district
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

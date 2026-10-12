@@ -46,12 +46,14 @@ def find_nearest_safe_shelters(
     surge_polygon: Any = None,
     wind_64kt_polygon: Any = None,
     limit: int = 3,
+    surge_height_m: Optional[float] = None,
 ) -> List[Dict[str, Any]]:
     """
     Finds and prioritizes cyclone shelters based on real-time hazard status and distance.
 
     Safety Criteria:
-      - Shelter MUST NOT be inside active surge inundation polygon.
+      - Shelter MUST NOT be inside active surge inundation polygon at an elevation
+        below the scenario surge height (when elevation and surge height are known).
       - Shelters outside 64-kt hurricane wind cone are prioritized.
       - Distance is computed via Haversine formula.
     """
@@ -64,7 +66,11 @@ def find_nearest_safe_shelters(
         heading = calculate_compass_bearing(citizen_lat, citizen_lon, s_lat, s_lon)
 
         pt = Point(s_lon, s_lat)
-        in_surge = bool(surge_polygon and surge_polygon.contains(pt))
+        elevation = s.get("elevation_m")
+        below_surge = (
+            True if (surge_height_m is None or elevation is None) else float(elevation) < float(surge_height_m)
+        )
+        in_surge = bool(surge_polygon and surge_polygon.contains(pt) and below_surge)
         in_extreme_wind = bool(wind_64kt_polygon and wind_64kt_polygon.contains(pt))
 
         is_safe = not in_surge

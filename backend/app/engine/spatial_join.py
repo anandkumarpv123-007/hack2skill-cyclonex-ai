@@ -12,30 +12,7 @@ import pandas as pd
 from shapely.geometry import shape, Point, LineString, Polygon, MultiPolygon
 
 
-# Approximate conversion for length in degrees to km at ~16 deg latitude (Bay of Bengal)
-KM_PER_DEGREE = 111.0
-
-
-AP_COASTLINE_VERTICES = [
-    (80.05, 13.50),  # Pulicat / TN border
-    (80.15, 14.00),  # Dugarajapatnam
-    (80.12, 14.45),  # Nellore coast
-    (80.05, 15.00),  # Ramayapatnam
-    (80.16, 15.45),  # Kothapatnam / Ongole coast
-    (80.35, 15.75),  # Chirala coast / Vadarevu
-    (80.52, 15.85),  # Suryalanka Beach
-    (80.67, 15.91),  # Nizampatnam
-    (80.95, 16.02),  # Krishna delta tip
-    (81.24, 16.25),  # Machilipatnam / Manginapudi
-    (81.75, 16.45),  # Antarvedi / Godavari mouth
-    (82.35, 16.95),  # Kakinada coast
-    (82.85, 17.35),  # Tuni coast
-    (83.32, 17.71),  # Visakhapatnam RK Beach
-    (83.46, 17.89),  # Bheemunipatnam
-    (83.90, 18.28),  # Kalingapatnam / Srikakulam
-    (84.30, 18.60),  # Bhavanapadu / AP-Odisha border
-]
-AP_COASTLINE = LineString(AP_COASTLINE_VERTICES)
+from app.geospatial.coastline import AP_COASTLINE, AP_COASTLINE_VERTICES, KM_PER_DEGREE  # noqa: F401
 
 
 def evaluate_asset_exposure(
@@ -88,8 +65,6 @@ def evaluate_asset_exposure(
             in_64 = bool(poly_64 and not poly_64.is_empty and poly_64.contains(geom))
             in_50 = bool(poly_50 and not poly_50.is_empty and poly_50.contains(geom))
             in_34 = bool(poly_34 and not poly_34.is_empty and poly_34.contains(geom))
-            in_surge = bool(poly_surge and not poly_surge.is_empty and poly_surge.contains(geom))
-
             # Dynamic terrain & physical exposure calculations
             elev_m = float(item.get("properties", {}).get("elevation_m") or (
                 4.5 if "hospital" in asset_type else
@@ -98,6 +73,12 @@ def evaluate_asset_exposure(
             ))
             dist_coast_km = round(AP_COASTLINE.distance(geom) * KM_PER_DEGREE, 1)
             surge_margin_m = round(elev_m - surge_height_m, 2)
+
+            # Terrain-elevation scenario: an asset is inundated only if it lies inside the coastal
+            # surge envelope AND its ground elevation is below the scenario surge height.
+            in_surge = bool(
+                poly_surge and not poly_surge.is_empty and poly_surge.contains(geom) and surge_margin_m < 0
+            )
 
             # Deterministic vulnerability score [0 - 100] & Hazard classification
             if in_64 or in_surge or (surge_margin_m < 0 and in_50):
