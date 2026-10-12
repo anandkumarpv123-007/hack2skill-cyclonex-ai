@@ -62,7 +62,7 @@ export default function TopHeader({
     >
       {/* Page Title & Breadcrumb */}
       <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 pr-2">
-        <h1 className="text-xs sm:text-sm md:text-base font-black text-white tracking-wide uppercase font-sans truncate max-w-[180px] sm:max-w-xs md:max-w-md">
+        <h1 className="text-xs sm:text-sm md:text-base font-black text-white tracking-wide uppercase font-sans truncate max-w-[180px] sm:max-w-sm md:max-w-none md:shrink-0 md:whitespace-nowrap">
           {pageTitle}
         </h1>
         <span

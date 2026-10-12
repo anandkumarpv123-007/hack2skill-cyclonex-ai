@@ -227,7 +227,7 @@ export default function Sidebar({
             </div>
             <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
               <span>Ground Truth:</span>
-              <span className="text-cyan-300">IMD / GEE Stack</span>
+              <span className="text-cyan-300">IMD benchmarks / SRTM</span>
             </div>
           </div>
         ) : (

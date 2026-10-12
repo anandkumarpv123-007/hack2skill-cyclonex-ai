@@ -54,6 +54,7 @@ import ExecutiveActionStrip from "@/components/ExecutiveActionStrip";
 import ThreatRadarWidget from "@/components/ThreatRadarWidget";
 import PredictiveTimelineWidget from "@/components/PredictiveTimelineWidget";
 import HumanImpactWidget from "@/components/HumanImpactWidget";
+import GeminiBriefing from "@/components/GeminiBriefing";
 import InfrastructureDetailDrawer, {
   InfrastructureAsset,
 } from "@/components/InfrastructureDetailDrawer";
@@ -74,7 +75,7 @@ import {
 } from "@/types/cyclone";
 
 const PAGE_TITLES: Record<NavPageId, string> = {
-  dashboard: "Cyclone Impact Command Center",
+  dashboard: "Command Center",
   monitor: "Cyclone Tracking & Meteorological Telemetry",
   intelligence: "Risk Intelligence & Hazard Correlation",
   map: "Interactive GIS Geospatial Risk Map",
@@ -229,8 +230,8 @@ export default function AuthorityDashboardPage() {
       const evalData = evaluatedMap.get(assetName.toLowerCase().trim());
 
       const riskLevel = (evalData?.hazard_level || props.hazard_level || props.risk_level || "HIGH").toUpperCase();
-      const elev = evalData?.elev_m !== undefined ? evalData.elev_m : (props.elevation_m !== undefined ? props.elevation_m : 4.5);
-      const dist = evalData?.dist_coast_km !== undefined ? evalData.dist_coast_km : (props.dist_coast_km || props.distance_km || 3.2);
+      const elev = evalData?.elevation_m !== undefined ? evalData.elevation_m : (props.elevation_m !== undefined ? props.elevation_m : 4.5);
+      const dist = evalData?.distance_from_coast_km !== undefined ? evalData.distance_from_coast_km : (props.distance_from_coast_km ?? props.dist_coast_km ?? props.distance_km ?? undefined);
       const vuln = evalData?.vulnerability_score !== undefined ? evalData.vulnerability_score : (props.vulnerability_score || (riskLevel === "EXTREME" ? 92 : riskLevel === "HIGH" ? 76 : 48));
       const inSurge = evalData ? evalData.in_surge_zone : (props.in_surge_zone || false);
       const action = evalData?.recommended_action || props.recommended_action || "Execute protective structural hardening.";
@@ -247,7 +248,7 @@ export default function AuthorityDashboardPage() {
         risk_level: riskLevel,
         vulnerability_score: vuln,
         in_surge_zone: inSurge,
-        in_extreme_wind: evalData?.in_wind_swath ?? props.in_extreme_wind ?? true,
+        in_extreme_wind: evalData ? Boolean(evalData.in_64kt_wind || evalData.in_50kt_wind) : (props.in_extreme_wind ?? false),
         capacity: props.capacity || props.beds || evalData?.capacity || evalData?.beds,
         recommended_action: action,
       };
@@ -266,8 +267,9 @@ export default function AuthorityDashboardPage() {
           ...props,
           hazard_level: evalData.hazard_level,
           risk_level: evalData.hazard_level,
-          elevation_m: evalData.elev_m,
-          dist_coast_km: evalData.dist_coast_km,
+          elevation_m: evalData.elevation_m,
+          dist_coast_km: evalData.distance_from_coast_km,
+          distance_from_coast_km: evalData.distance_from_coast_km,
           vulnerability_score: evalData.vulnerability_score,
           in_surge_zone: evalData.in_surge_zone,
         },
@@ -570,9 +572,7 @@ export default function AuthorityDashboardPage() {
                             {advisory.served_from_cache ? " · cached" : ""}
                           </span>
                           </div>
-                          <p className="text-xs text-slate-100 leading-relaxed font-sans whitespace-pre-line">
-                            {advisory.gemini_briefing}
-                          </p>
+                          <GeminiBriefing text={advisory.gemini_briefing} metrics={advisory.metrics_cited as unknown as Record<string, unknown>} />
                         </div>
                         <div className="pt-2 border-t border-[#1e293b]">
                           <span className="text-[10px] font-mono text-slate-400 block mb-1">
@@ -643,6 +643,7 @@ export default function AuthorityDashboardPage() {
                     highestRiskDistrict={highestCvi.district}
                     sheltersAtRisk={riskData.exposure_summary.shelters_at_risk.assets.length}
                     hospitalsAtRisk={riskData.exposure_summary.hospitals_at_risk.assets.length}
+                    evaluatedAssets={riskData.exposure_summary.all_evaluated_assets || []}
                   />
 
                   {/* Top Critical Infrastructure Nodes At Risk */}
@@ -672,7 +673,7 @@ export default function AuthorityDashboardPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {filteredAssets.slice(0, 6).map((asset) => (
+                      {[...filteredAssets].sort((x, y) => (y.vulnerability_score ?? 0) - (x.vulnerability_score ?? 0)).slice(0, 6).map((asset) => (
                         <div
                           key={asset.id}
                           onClick={() => setSelectedAsset(asset)}
@@ -691,7 +692,7 @@ export default function AuthorityDashboardPage() {
 
                           <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1 border-t border-[#22334e]">
                             <span>{asset.district}</span>
-                            <span className="text-amber-300">{asset.distance_from_coast_km} km coast</span>
+                            <span className="text-amber-300">{asset.distance_from_coast_km != null ? `${asset.distance_from_coast_km} km to coast` : "—"}</span>
                           </div>
                         </div>
                       ))}
@@ -1057,7 +1058,7 @@ export default function AuthorityDashboardPage() {
                                 <td className="py-3 px-3 font-bold text-white">{asset.name}</td>
                                 <td className="py-3 px-3 text-cyan-300">{asset.type}</td>
                                 <td className="py-3 px-3 text-slate-300">{asset.district}</td>
-                                <td className="py-3 px-3 text-amber-300">{asset.distance_from_coast_km} km</td>
+                                <td className="py-3 px-3 text-amber-300">{asset.distance_from_coast_km != null ? `${asset.distance_from_coast_km} km` : "—"}</td>
                                 <td className="py-3 px-3 text-slate-300">{asset.elevation_m}m</td>
                                 <td className="py-3 px-3">
                                   <RiskBadge level={asset.risk_level} size="sm" />
@@ -1412,7 +1413,7 @@ export default function AuthorityDashboardPage() {
                               <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-800/40 text-xs text-slate-200 space-y-2">
                                 <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[11px]">
                                   <CheckCircle className="w-3.5 h-3.5" />
-                                  <span>AP SDMA Official Bot Advisory</span>
+                                  <span>Simulated Citizen Advisory Bot (demo)</span>
                                 </div>
                                 <p>Severe cyclone alert generated. Immediate shelter occupancy advised.</p>
                                 <div className="flex flex-wrap gap-1.5 pt-1">
@@ -1536,9 +1537,7 @@ export default function AuthorityDashboardPage() {
                             {advisory.served_from_cache ? " · cached" : ""}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-100 leading-relaxed font-sans whitespace-pre-line">
-                          {advisory.gemini_briefing}
-                        </p>
+                        <GeminiBriefing text={advisory.gemini_briefing} metrics={advisory.metrics_cited as unknown as Record<string, unknown>} />
                       </div>
                     ) : (
                       <div className="p-3 rounded-lg bg-amber-950/30 border border-amber-600/30 text-xs font-mono text-amber-300 flex items-center justify-between">
