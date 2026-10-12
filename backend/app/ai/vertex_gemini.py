@@ -142,11 +142,11 @@ def get_grounding_status(text: Optional[str], peak_wind: Any, surge_h: Any, is_l
 
 
 # google-genai HttpOptions.timeout is expressed in MILLISECONDS (not seconds).
-GEMINI_TIMEOUT_MS = 20_000
+GEMINI_TIMEOUT_MS = 12_000
 
 # Successful live briefings are cached briefly so repeated dashboard loads during a demo
 # do not exhaust the free-tier request quota. Fallbacks are never cached.
-LIVE_BRIEFING_CACHE_TTL_S = 600
+LIVE_BRIEFING_CACHE_TTL_S = 3600
 
 
 def classify_gemini_error(exc: BaseException) -> Tuple[str, str]:
@@ -180,27 +180,69 @@ def classify_gemini_error(exc: BaseException) -> Tuple[str, str]:
     return "API_COMMUNICATION_ERROR", detail
 
 
+# Bounded resilience for transient provider errors (e.g. 503 "high demand").
+# google-genai does NOT retry by default (retry_options=None => single attempt).
+GEMINI_TOTAL_BUDGET_S = 15.0          # hard cap across all attempts and models
+GEMINI_ATTEMPTS_PER_MODEL = 2         # 1 retry per model, only for 5xx
+GEMINI_RETRY_DELAY_S = 1.0
+GEMINI_RETRYABLE_STATUS = {500, 502, 503, 504}
+# Errors where a different model may still succeed (per-model capacity / availability / quota).
+GEMINI_TRY_NEXT_MODEL_REASONS = {"MODEL_UNAVAILABLE", "GEMINI_SERVER_ERROR", "QUOTA_EXCEEDED"}
+
+
 class GroundedAdvisoryEngine:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY
-        self.model_name = settings.GEMINI_MODEL or "gemini-2.5-flash"
+        self.model_name = settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
+        self.fallback_model_name = (getattr(settings, "GEMINI_FALLBACK_MODEL", "") or "").strip()
+        self.thinking_level = (getattr(settings, "GEMINI_THINKING_LEVEL", "") or "").strip().upper()
         self.last_fallback_detail: Optional[str] = None
         self.last_fallback_reason: Optional[str] = None
-        self._live_cache: Dict[str, Tuple[float, str]] = {}
+        self.last_model_used: Optional[str] = None
+        self._live_cache: Dict[str, Tuple[float, str, Optional[str]]] = {}
+
+    def _generation_config(self, types: Any, model: str, timeout_ms: int, use_thinking: bool) -> Any:
+        config_kwargs: Dict[str, Any] = dict(
+            system_instruction=SYSTEM_GROUNDING_DIRECTIVE,
+            temperature=0.2,
+            max_output_tokens=2048,
+            http_options=types.HttpOptions(timeout=timeout_ms),
+        )
+        # Hidden "thinking" consumes output tokens and adds latency; keep it minimal so the
+        # visible briefing is not truncated and the dashboard is not blocked for long.
+        m = model.lower()
+        if use_thinking and m.startswith("gemini-2.5-flash"):
+            config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+        elif use_thinking and m.startswith("gemini-3") and self.thinking_level:
+            config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=self.thinking_level)
+        return types.GenerateContentConfig(**config_kwargs)
 
     def _call_gemini(self, prompt: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Attempts to invoke Gemini Developer API via google-genai SDK using GEMINI_API_KEY.
-        Returns (response_text, fallback_reason). The exception class / HTTP status of the
-        most recent failure is stored in self.last_fallback_detail (no secrets).
-        Enforces a 20-second timeout and handles all exceptions safely without crashing.
+        Invokes the Gemini Developer API (google-genai, GEMINI_API_KEY).
+        Returns (response_text, fallback_reason). On success self.last_model_used names the model
+        that actually produced the text. On failure self.last_fallback_detail holds only the
+        exception class / HTTP status (no secrets). Never fabricates AI output.
+
+        Resilience (bounded by GEMINI_TOTAL_BUDGET_S):
+          - 5xx: one short retry on the same model.
+          - 404 / 429 / persistent 5xx: try GEMINI_FALLBACK_MODEL once, if configured.
+          - 400 caused by the thinking option: retry once without it.
+          - Timeouts, auth and other errors: fall back to the deterministic engine immediately.
         """
         self.last_fallback_detail = None
+        self.last_model_used = None
         api_key = self.api_key or os.environ.get("GEMINI_API_KEY", "")
         if not api_key:
             self.last_fallback_detail = "GEMINI_API_KEY is empty in the backend environment"
             return None, "GEMINI_API_KEY_NOT_CONFIGURED"
 
+        deadline = time.monotonic() + GEMINI_TOTAL_BUDGET_S
+        models = [self.model_name]
+        if self.fallback_model_name and self.fallback_model_name != self.model_name:
+            models.append(self.fallback_model_name)
+
+        reason: Optional[str] = None
         try:
             from google import genai
             from google.genai import types
@@ -209,30 +251,56 @@ class GroundedAdvisoryEngine:
                 api_key=api_key,
                 http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS),
             )
-            config_kwargs: Dict[str, Any] = dict(
-                system_instruction=SYSTEM_GROUNDING_DIRECTIVE,
-                temperature=0.2,
-                max_output_tokens=2048,
-            )
-            # Flash models spend output tokens on hidden "thinking" by default, which can
-            # truncate or empty the visible briefing and add latency. Disable it for Flash.
-            if self.model_name.lower().startswith("gemini-2.5-flash"):
-                config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
-            response = client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
-                config=types.GenerateContentConfig(**config_kwargs),
-            )
-            text = getattr(response, "text", None) if response else None
-            if text and text.strip():
-                return text.strip(), None
-            self.last_fallback_detail = "Model returned no text (possibly blocked or truncated)"
-            return None, "EMPTY_MODEL_RESPONSE"
         except Exception as e:
             reason, detail = classify_gemini_error(e)
             self.last_fallback_detail = detail
-            logger.warning(f"Gemini API invocation failed: reason={reason} detail={detail}")
+            logger.warning(f"Gemini client initialisation failed: reason={reason} detail={detail}")
             return None, reason
+
+        for model in models:
+            use_thinking = True
+            attempt = 0
+            while attempt < GEMINI_ATTEMPTS_PER_MODEL:
+                remaining_s = deadline - time.monotonic()
+                if remaining_s < 2.0:
+                    if reason is None:
+                        reason, self.last_fallback_detail = "REQUEST_TIMEOUT", "Gemini time budget exhausted"
+                    return None, reason
+                attempt += 1
+                timeout_ms = int(min(GEMINI_TIMEOUT_MS, remaining_s * 1000))
+                try:
+                    response = client.models.generate_content(
+                        model=model,
+                        contents=prompt,
+                        config=self._generation_config(types, model, timeout_ms, use_thinking),
+                    )
+                    text = getattr(response, "text", None) if response else None
+                    if text and text.strip():
+                        self.last_model_used = model
+                        self.last_fallback_detail = None
+                        return text.strip(), None
+                    reason = "EMPTY_MODEL_RESPONSE"
+                    self.last_fallback_detail = f"{model}: model returned no text (possibly blocked or truncated)"
+                    logger.warning(f"Gemini returned no text: model={model}")
+                    break  # try next model
+                except Exception as e:
+                    reason, detail = classify_gemini_error(e)
+                    self.last_fallback_detail = f"{model}: {detail}"
+                    code = getattr(e, "code", None)
+                    logger.warning(
+                        f"Gemini API invocation failed: model={model} attempt={attempt} "
+                        f"reason={reason} detail={detail}"
+                    )
+                    if reason == "INVALID_REQUEST" and use_thinking and "THINKING" in str(e).upper():
+                        use_thinking = False  # model rejected the thinking option; retry without it
+                        continue
+                    if code in GEMINI_RETRYABLE_STATUS and attempt < GEMINI_ATTEMPTS_PER_MODEL:
+                        time.sleep(min(GEMINI_RETRY_DELAY_S, max(0.0, deadline - time.monotonic() - 2.0)))
+                        continue
+                    if reason in GEMINI_TRY_NEXT_MODEL_REASONS:
+                        break  # try next model
+                    return None, reason  # timeout, auth, network, bad request: no point retrying
+        return None, reason
 
     def _call_gemini_cached(self, prompt: str) -> Tuple[Optional[str], Optional[str], bool]:
         """Returns (text, fallback_reason, served_from_cache). Only successful live text is cached."""
@@ -241,11 +309,12 @@ class GroundedAdvisoryEngine:
         if cached and now - cached[0] < LIVE_BRIEFING_CACHE_TTL_S:
             self.last_fallback_detail = None
             self.last_fallback_reason = None
+            self.last_model_used = cached[2]
             return cached[1], None, True
         text, reason = self._call_gemini(prompt)
         self.last_fallback_reason = reason
         if text:
-            self._live_cache[prompt] = (now, text)
+            self._live_cache[prompt] = (now, text, self.last_model_used)
         return text, reason, False
 
     def generate_advisory(
@@ -459,7 +528,7 @@ class GroundedAdvisoryEngine:
         return {
             "is_live_ai": is_live_ai,
             "ai_provider": "GOOGLE_AI_STUDIO_GEMINI" if is_live_ai else "Deterministic Rule-Based Grounding Engine",
-            "model": self.model_name if is_live_ai else "deterministic-rule-template",
+            "model": (self.last_model_used or self.model_name) if is_live_ai else "deterministic-rule-template",
             "gemini_briefing": ai_response_text,
             "grounding_integrity_verified": grounding_verified,
             "grounding_status": grounding_status,

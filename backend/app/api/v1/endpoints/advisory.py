@@ -1,6 +1,6 @@
 """
 CYCLONEX AI Advisory API Endpoint
-Integrates the deterministic ground truth matrix with Google Gemini (gemini-2.5-flash) or grounded fallback.
+Integrates the deterministic ground truth matrix with Google Gemini (model set by GEMINI_MODEL) or grounded fallback.
 """
 
 from typing import Optional
@@ -21,7 +21,7 @@ async def generate_cyclone_advisory(
     """
     Executes the full anti-hallucination grounded pipeline:
       1. Evaluates deterministic spatial hazard metrics & infrastructure exposure.
-      2. Injects verified JSON ground truth into Gemini (gemini-2.5-flash) or deterministic grounded fallback.
+      2. Injects verified JSON ground truth into Gemini (GEMINI_MODEL) or deterministic grounded fallback.
       3. Returns Authority tactical guidance, bilingual citizen alerts (English + Telugu),
          and automated CAP v1.2 multi-channel municipal dispatches.
     """

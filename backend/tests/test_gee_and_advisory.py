@@ -267,7 +267,7 @@ def test_gemini_mocked_success(monkeypatch):
 
     assert adv["is_live_ai"] is True
     assert adv["ai_provider"] == "GOOGLE_AI_STUDIO_GEMINI"
-    assert adv["model"] == "gemini-2.5-flash"
+    assert adv["model"] == advisory_engine.model_name
     assert adv["gemini_briefing"] == mock_briefing_text
     assert adv["grounding_status"] == "VERIFIED_NUMERICAL_MATCH"
     assert adv["grounding_integrity_verified"] is True

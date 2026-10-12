@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List, Union
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -43,7 +44,11 @@ class Settings(BaseSettings):
 
     # Cloud & External Services (Milestone 3 & 4)
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
+    # Optional second model tried once on 404 / 429 / persistent 5xx. Empty string disables it.
+    GEMINI_FALLBACK_MODEL: str = "gemini-flash-lite-latest"
+    # Gemini 3 thinking level (MINIMAL/LOW/MEDIUM/HIGH). Empty string = model default.
+    GEMINI_THINKING_LEVEL: str = "LOW"
     GOOGLE_CLOUD_PROJECT: str = ""
     VERTEX_AI_LOCATION: str = "us-central1"
     GEE_PROJECT_ID: str = ""
@@ -51,7 +56,7 @@ class Settings(BaseSettings):
     OPEN_METEO_API_URL: str = "https://api.open-meteo.com/v1/forecast"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", str(Path(__file__).resolve().parent.parent.parent / ".env")),
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",

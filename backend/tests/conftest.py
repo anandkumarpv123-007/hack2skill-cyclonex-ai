@@ -19,3 +19,11 @@ def _reset_gemini_state():
     advisory_engine.last_fallback_detail = None
     yield
     advisory_engine._live_cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def _no_real_gemini_calls(monkeypatch):
+    """Unit tests must never reach the real Gemini API or spend quota."""
+    from app.ai.vertex_gemini import advisory_engine
+    monkeypatch.setattr(advisory_engine, "api_key", "")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
