@@ -20,3 +20,9 @@ httpx>=0.27.0
 
 # Google Gen AI SDK (Gemini Developer API)
 google-genai==2.29.0
+
+# Server-side hazard map rendering (image sent to Gemini; Agg backend, no display needed)
+matplotlib==3.11.2
+
+# Optional live Google Earth Engine terrain check (inactive unless GEE credentials are configured)
+earthengine-api==1.7.47

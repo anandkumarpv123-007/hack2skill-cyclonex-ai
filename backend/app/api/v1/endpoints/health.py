@@ -9,6 +9,7 @@ from app.core.config import settings
 import os
 from app.schemas.health import HealthResponse, DeterministicStackInfo, AIRuntimeInfo
 from app.ai.vertex_gemini import advisory_engine
+from app.geospatial import earth_engine
 
 router = APIRouter()
 
@@ -41,6 +42,8 @@ def get_health() -> HealthResponse:
             gemini_model=advisory_engine.model_name,
             last_gemini_fallback_reason=advisory_engine.last_fallback_reason,
             last_gemini_fallback_detail=advisory_engine.last_fallback_detail,
-            earth_engine_live=False,
+            earth_engine_live=earth_engine.is_live(),
+            gemini_multimodal_enabled=bool(settings.GEMINI_MULTIMODAL),
+            live_conditions_enabled=bool(settings.LIVE_CONDITIONS_ENABLED),
         ),
     )

@@ -108,3 +108,62 @@ export async function fetchInfrastructureGeoJSON(
   if (!res.ok) throw new Error("Failed to fetch infrastructure GeoJSON");
   return res.json();
 }
+
+export interface LiveConditions {
+  status: "live" | "unavailable";
+  reason?: string;
+  source: string;
+  note: string;
+  observed_at?: string;
+  location: { lat: number; lon: number; label?: string | null };
+  conditions?: {
+    temperature_c: number | null;
+    relative_humidity_pct: number | null;
+    precipitation_mm: number | null;
+    wind_speed_kmh: number | null;
+    wind_gusts_kmh: number | null;
+    wind_direction_deg: number | null;
+    surface_pressure_hpa: number | null;
+    weather_code: number | null;
+    wave_height_m: number | null;
+  };
+  cyclonic_winds_now?: boolean;
+  cyclonic_wind_threshold_kmh?: number;
+  served_from_cache?: boolean;
+}
+
+export async function fetchLiveConditions(lat: number, lon: number, label?: string): Promise<LiveConditions> {
+  const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+  if (label) params.set("label", label);
+  const res = await fetch(`${getApiBaseUrl()}/api/v1/weather/live?${params.toString()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Live conditions request failed: ${res.status}`);
+  return res.json();
+}
+
+/** URL of the engine-rendered hazard map image (the exact image sent to Gemini). */
+export function hazardMapImageUrl(cycloneId?: string): string {
+  const q = cycloneId ? `?cyclone_id=${encodeURIComponent(cycloneId)}` : "";
+  return `${getApiBaseUrl()}/api/v1/advisory/hazard-map.png${q}`;
+}
+
+export interface TerrainCheck {
+  status: "live" | "not_configured" | "error";
+  reason?: string;
+  source?: string;
+  note?: string;
+  landfall_target?: string;
+  radius_km?: number;
+  surge_height_m?: number;
+  mean_land_elevation_m?: number | null;
+  land_fraction_below_surge_pct?: number | null;
+  land_area_below_surge_km2?: number | null;
+  land_area_analysed_km2?: number | null;
+  computed_at?: string;
+}
+
+export async function fetchTerrainCheck(cycloneId?: string): Promise<TerrainCheck> {
+  const q = cycloneId ? `?cyclone_id=${encodeURIComponent(cycloneId)}` : "";
+  const res = await fetch(`${getApiBaseUrl()}/api/v1/geospatial/terrain-check${q}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Terrain check failed: ${res.status}`);
+  return res.json();
+}

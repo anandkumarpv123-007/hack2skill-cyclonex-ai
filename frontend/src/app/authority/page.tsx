@@ -55,6 +55,8 @@ import ThreatRadarWidget from "@/components/ThreatRadarWidget";
 import PredictiveTimelineWidget from "@/components/PredictiveTimelineWidget";
 import HumanImpactWidget from "@/components/HumanImpactWidget";
 import GeminiBriefing from "@/components/GeminiBriefing";
+import LiveConditionsCard from "@/components/LiveConditionsCard";
+import EarthEngineCard from "@/components/EarthEngineCard";
 import InfrastructureDetailDrawer, {
   InfrastructureAsset,
 } from "@/components/InfrastructureDetailDrawer";
@@ -66,6 +68,7 @@ import {
   evaluateRisk,
   generateAdvisory,
   fetchInfrastructureGeoJSON,
+  hazardMapImageUrl,
 } from "@/lib/api";
 import {
   CycloneTrack,
@@ -431,6 +434,16 @@ export default function AuthorityDashboardPage() {
                     isEmergencyMode={isEmergencyMode}
                   />
 
+                  {/* Real-time meteorological data at the scenario landfall point */}
+                  <LiveConditionsCard
+                    lat={cyclone.landfall_lat}
+                    lon={cyclone.landfall_lon}
+                    label={(cyclone.landfall_target || "Landfall point").split(",")[0]}
+                  />
+
+                  {/* Live Google Earth Engine terrain check (renders only when Earth Engine is configured) */}
+                  <EarthEngineCard cycloneId={selectedScenarioId} />
+
                   {/* Priority Sector Zone Filter Tabs */}
                   <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
                     <span className="text-[11px] font-mono text-slate-400 uppercase font-bold">
@@ -558,6 +571,11 @@ export default function AuthorityDashboardPage() {
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-mono text-cyan-300 font-bold uppercase tracking-wider">
                               Live Gemini AI Synthesis ({advisory.model})
+                              {advisory.multimodal_used && (
+                                <span className="ml-2 normal-case text-[9px] text-violet-200 bg-violet-950/70 border border-violet-700 px-1.5 py-0.5 rounded">
+                                  multimodal · engine data + hazard map image
+                                </span>
+                              )}
                             </span>
                             <span
                             className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
@@ -573,7 +591,7 @@ export default function AuthorityDashboardPage() {
                             {advisory.served_from_cache ? " · cached" : ""}
                           </span>
                           </div>
-                          <GeminiBriefing text={advisory.gemini_briefing} metrics={advisory.metrics_cited as unknown as Record<string, unknown>} />
+                          <GeminiBriefing text={advisory.gemini_briefing} metrics={advisory.metrics_cited as unknown as Record<string, unknown>} multimodal={Boolean(advisory.multimodal_used)} mapImageUrl={hazardMapImageUrl(selectedScenarioId)} />
                         </div>
                         <div className="pt-2 border-t border-[#1e293b]">
                           <span className="text-[10px] font-mono text-slate-400 block mb-1">
@@ -1538,7 +1556,7 @@ export default function AuthorityDashboardPage() {
                             {advisory.served_from_cache ? " · cached" : ""}
                           </span>
                         </div>
-                        <GeminiBriefing text={advisory.gemini_briefing} metrics={advisory.metrics_cited as unknown as Record<string, unknown>} />
+                        <GeminiBriefing text={advisory.gemini_briefing} metrics={advisory.metrics_cited as unknown as Record<string, unknown>} multimodal={Boolean(advisory.multimodal_used)} mapImageUrl={hazardMapImageUrl(selectedScenarioId)} />
                       </div>
                     ) : (
                       <div className="p-3 rounded-lg bg-amber-950/30 border border-amber-600/30 text-xs font-mono text-amber-300 flex items-center justify-between">

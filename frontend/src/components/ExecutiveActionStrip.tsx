@@ -37,7 +37,6 @@ export default function ExecutiveActionStrip({
   isEmergencyMode = false,
 }: ExecutiveActionStripProps) {
   const [showFullDirective, setShowFullDirective] = useState(false);
-  const estimatedPopulation = windSpeed >= 120 ? "1,250,000+" : "680,000+";
 
   // Parse directives into concise bullet points
   const rawDirective = topDirective || "Pre-stage backup gensets at coastal hospitals, de-energize 33kV coastal feeders, open elevated MPCS shelters.";
@@ -130,7 +129,7 @@ export default function ExecutiveActionStrip({
               </span>
             </div>
             <h4 className="text-sm font-black text-white leading-tight">
-              {estimatedPopulation} Citizens at Risk
+              {hospitalsAtRisk + substationsAtRisk + sheltersCount} Lifeline Assets Exposed
             </h4>
             <p className="text-xs text-slate-300 leading-relaxed font-sans">
               Threatening <b className="text-rose-300">{pluralize(hospitalsAtRisk, "hospital")}</b>,{" "}

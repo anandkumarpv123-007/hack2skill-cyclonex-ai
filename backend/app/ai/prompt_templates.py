@@ -36,3 +36,14 @@ COMPOSITE VULNERABILITY INDEX (CVI) RANKINGS:
 
 Generate the structured tactical advisory following the strict grounding directives.
 """
+
+MULTIMODAL_MAP_INSTRUCTION = """
+
+ATTACHED IMAGE: a hazard map rendered by the deterministic engine for this scenario. It shows the
+coastline, the storm track, the 34/50/64-kt wind swaths, the scenario surge envelope (blue hatched),
+and critical assets (hospital = cross, shelter = square, substation = triangle; red = below the surge
+inside the envelope, orange = inside the 64-kt swath).
+Add a short section "SPATIAL READING OF THE HAZARD MAP" (3-5 bullets) describing where the hazards
+concentrate along the coast and which named assets lie inside the surge envelope or 64-kt swath, and
+how they cluster. Take every number from the ground-truth data above, never from the image.
+"""

@@ -11,7 +11,7 @@ import math
 import time
 from app.core.config import settings
 from app.core.logging import logger
-from app.ai.prompt_templates import SYSTEM_GROUNDING_DIRECTIVE, USER_GROUNDING_PROMPT_TEMPLATE
+from app.ai.prompt_templates import SYSTEM_GROUNDING_DIRECTIVE, USER_GROUNDING_PROMPT_TEMPLATE, MULTIMODAL_MAP_INSTRUCTION
 
 
 WIND_PATTERNS = [
@@ -200,6 +200,8 @@ class GroundedAdvisoryEngine:
         self.last_fallback_reason: Optional[str] = None
         self.last_model_used: Optional[str] = None
         self._live_cache: Dict[str, Tuple[float, str, Optional[str]]] = {}
+        self._cache_used_image: Dict[str, bool] = {}
+        self.last_used_image: bool = False
 
     def _generation_config(self, types: Any, model: str, timeout_ms: int, use_thinking: bool) -> Any:
         config_kwargs: Dict[str, Any] = dict(
@@ -217,7 +219,7 @@ class GroundedAdvisoryEngine:
             config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=self.thinking_level)
         return types.GenerateContentConfig(**config_kwargs)
 
-    def _call_gemini(self, prompt: str) -> Tuple[Optional[str], Optional[str]]:
+    def _call_gemini(self, prompt: str, image_png: Optional[bytes] = None) -> Tuple[Optional[str], Optional[str]]:
         """
         Invokes the Gemini Developer API (google-genai, GEMINI_API_KEY).
         Returns (response_text, fallback_reason). On success self.last_model_used names the model
@@ -228,10 +230,12 @@ class GroundedAdvisoryEngine:
           - 5xx: one short retry on the same model.
           - 404 / 429 / persistent 5xx: try GEMINI_FALLBACK_MODEL once, if configured.
           - 400 caused by the thinking option: retry once without it.
+          - 400 while an image is attached: retry once text-only (multimodal is best-effort).
           - Timeouts, auth and other errors: fall back to the deterministic engine immediately.
         """
         self.last_fallback_detail = None
         self.last_model_used = None
+        self.last_used_image = False
         api_key = self.api_key or os.environ.get("GEMINI_API_KEY", "")
         if not api_key:
             self.last_fallback_detail = "GEMINI_API_KEY is empty in the backend environment"
@@ -257,8 +261,16 @@ class GroundedAdvisoryEngine:
             logger.warning(f"Gemini client initialisation failed: reason={reason} detail={detail}")
             return None, reason
 
+        image_part = None
+        if image_png:
+            try:
+                image_part = types.Part.from_bytes(data=image_png, mime_type="image/png")
+            except Exception:
+                image_part = None
+
         for model in models:
             use_thinking = True
+            send_image = image_part is not None
             attempt = 0
             while attempt < GEMINI_ATTEMPTS_PER_MODEL:
                 remaining_s = deadline - time.monotonic()
@@ -271,12 +283,13 @@ class GroundedAdvisoryEngine:
                 try:
                     response = client.models.generate_content(
                         model=model,
-                        contents=prompt,
+                        contents=[image_part, prompt] if send_image else prompt,
                         config=self._generation_config(types, model, timeout_ms, use_thinking),
                     )
                     text = getattr(response, "text", None) if response else None
                     if text and text.strip():
                         self.last_model_used = model
+                        self.last_used_image = send_image
                         self.last_fallback_detail = None
                         return text.strip(), None
                     reason = "EMPTY_MODEL_RESPONSE"
@@ -294,6 +307,9 @@ class GroundedAdvisoryEngine:
                     if reason == "INVALID_REQUEST" and use_thinking and "THINKING" in str(e).upper():
                         use_thinking = False  # model rejected the thinking option; retry without it
                         continue
+                    if reason == "INVALID_REQUEST" and send_image:
+                        send_image = False  # model/request rejected the image; retry text-only
+                        continue
                     if code in GEMINI_RETRYABLE_STATUS and attempt < GEMINI_ATTEMPTS_PER_MODEL:
                         time.sleep(min(GEMINI_RETRY_DELAY_S, max(0.0, deadline - time.monotonic() - 2.0)))
                         continue
@@ -302,25 +318,33 @@ class GroundedAdvisoryEngine:
                     return None, reason  # timeout, auth, network, bad request: no point retrying
         return None, reason
 
-    def _call_gemini_cached(self, prompt: str) -> Tuple[Optional[str], Optional[str], bool]:
+    def _call_gemini_cached(self, prompt: str, image_png: Optional[bytes] = None) -> Tuple[Optional[str], Optional[str], bool]:
         """Returns (text, fallback_reason, served_from_cache). Only successful live text is cached."""
         now = time.time()
-        cached = self._live_cache.get(prompt)
+        key = prompt + ("\n[hazard-map-image]" if image_png else "")
+        cached = self._live_cache.get(key)
         if cached and now - cached[0] < LIVE_BRIEFING_CACHE_TTL_S:
             self.last_fallback_detail = None
             self.last_fallback_reason = None
             self.last_model_used = cached[2]
+            self.last_used_image = self._cache_used_image.get(key, False)
             return cached[1], None, True
-        text, reason = self._call_gemini(prompt)
+        self.last_used_image = False
+        if image_png:
+            text, reason = self._call_gemini(prompt, image_png=image_png)
+        else:
+            text, reason = self._call_gemini(prompt)
         self.last_fallback_reason = reason
         if text:
-            self._live_cache[prompt] = (now, text, self.last_model_used)
+            self._live_cache[key] = (now, text, self.last_model_used)
+            self._cache_used_image[key] = bool(getattr(self, "last_used_image", False))
         return text, reason, False
 
     def generate_advisory(
         self,
         ground_truth: Dict[str, Any],
         target_district: Optional[str] = None,
+        hazard_map_png: Optional[bytes] = None,
     ) -> Dict[str, Any]:
         """
         Generates operational advisories strictly grounded in the
@@ -422,7 +446,12 @@ class GroundedAdvisoryEngine:
             cvi_summary=cvi_lines,
         )
 
-        ai_response_text, fallback_reason, served_from_cache = self._call_gemini_cached(user_prompt)
+        if hazard_map_png:
+            user_prompt = user_prompt + MULTIMODAL_MAP_INSTRUCTION
+        ai_response_text, fallback_reason, served_from_cache = self._call_gemini_cached(
+            user_prompt, image_png=hazard_map_png
+        )
+        multimodal_used = bool(ai_response_text) and bool(getattr(self, "last_used_image", False))
         is_live_ai = ai_response_text is not None
         fallback_detail = None if is_live_ai else self.last_fallback_detail
 
@@ -535,6 +564,9 @@ class GroundedAdvisoryEngine:
             "fallback_reason": fallback_reason,
             "fallback_detail": fallback_detail,
             "served_from_cache": served_from_cache,
+            "multimodal_used": multimodal_used,
+            "gemini_inputs": (["verified_engine_json", "hazard_map_image"] if multimodal_used
+                              else ["verified_engine_json"]) if is_live_ai else [],
             "metrics_cited": {
                 "cyclone_name": cyclone_name,
                 "peak_wind_kmh": peak_wind,

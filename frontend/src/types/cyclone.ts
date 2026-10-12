@@ -214,6 +214,8 @@ export interface AdvisoryData {
   fallback_reason?: string | null;
   fallback_detail?: string | null;
   served_from_cache?: boolean;
+  multimodal_used?: boolean;
+  gemini_inputs?: string[];
   metrics_cited: {
     cyclone_name: string;
     peak_wind_kmh: number;

@@ -92,10 +92,14 @@ export default function GeminiBriefing({
   text,
   metrics,
   maxHeightClass = "max-h-80",
+  mapImageUrl,
+  multimodal = false,
 }: {
   text: string;
   metrics?: Record<string, unknown>;
   maxHeightClass?: string;
+  mapImageUrl?: string;
+  multimodal?: boolean;
 }) {
   const [showInput, setShowInput] = useState(false);
   const rows = metrics
@@ -115,7 +119,7 @@ export default function GeminiBriefing({
             className="flex items-center gap-1 text-[10px] font-mono text-cyan-300 hover:text-cyan-200"
           >
             {showInput ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-            WHAT GEMINI RECEIVED (DETERMINISTIC ENGINE OUTPUT)
+            WHAT GEMINI RECEIVED (DETERMINISTIC ENGINE OUTPUT{multimodal ? " + HAZARD MAP IMAGE" : ""})
           </button>
           {showInput && (
             <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono bg-[#090d16] border border-[#22334e] rounded-lg p-2.5">
@@ -125,6 +129,13 @@ export default function GeminiBriefing({
                   <span className="text-slate-200 text-right">{String(v)}</span>
                 </div>
               ))}
+              {multimodal && mapImageUrl && (
+                <div className="sm:col-span-2 pt-2 space-y-1">
+                  <span className="text-[10px] text-slate-400 block">Image input — engine-rendered hazard map (the exact image sent to Gemini):</span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={mapImageUrl} alt="Engine-rendered scenario hazard map sent to Gemini" className="w-full max-w-xl rounded-lg border border-[#22334e]" loading="lazy" />
+                </div>
+              )}
               <p className="sm:col-span-2 text-[10px] text-slate-500 pt-1">
                 Gemini only explains these values; actions come from the deterministic engine.
               </p>

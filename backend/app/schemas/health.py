@@ -17,7 +17,9 @@ class AIRuntimeInfo(BaseModel):
     gemini_model: str = Field(..., description="Configured Gemini model ID")
     last_gemini_fallback_reason: Optional[str] = Field(None, description="Reason of the most recent failed Gemini call, if any")
     last_gemini_fallback_detail: Optional[str] = Field(None, description="Exception class / HTTP status of the most recent failure (no secrets)")
-    earth_engine_live: bool = Field(False, description="Live Earth Engine raster queries are not active in this deployment")
+    earth_engine_live: bool = Field(False, description="True once Earth Engine has been initialised with configured credentials")
+    gemini_multimodal_enabled: bool = Field(False, description="Hazard map image is sent to Gemini with the verified JSON")
+    live_conditions_enabled: bool = Field(False, description="Live Open-Meteo current-conditions lookup enabled")
 
 
 class HealthResponse(BaseModel):

@@ -49,10 +49,16 @@ class Settings(BaseSettings):
     GEMINI_FALLBACK_MODEL: str = "gemini-flash-lite-latest"
     # Gemini 3 thinking level (MINIMAL/LOW/MEDIUM/HIGH). Empty string = model default.
     GEMINI_THINKING_LEVEL: str = "LOW"
+    # Send the engine-rendered hazard map image to Gemini alongside the verified JSON (multimodal).
+    GEMINI_MULTIMODAL: bool = True
+    # Live current-conditions lookup (Open-Meteo, no API key). Set False to disable outbound calls.
+    LIVE_CONDITIONS_ENABLED: bool = True
     GOOGLE_CLOUD_PROJECT: str = ""
     VERTEX_AI_LOCATION: str = "us-central1"
     GEE_PROJECT_ID: str = ""
     GEE_SERVICE_ACCOUNT_KEY_PATH: str = ""
+    # Full JSON key of an Earth Engine-enabled service account (Railway-friendly alternative to a key file).
+    GEE_SERVICE_ACCOUNT_JSON: str = ""
     OPEN_METEO_API_URL: str = "https://api.open-meteo.com/v1/forecast"
 
     model_config = SettingsConfigDict(
