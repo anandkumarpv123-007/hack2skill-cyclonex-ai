@@ -26,6 +26,7 @@ interface TopHeaderProps {
   isSyncing?: boolean;
   isEmergencyMode: boolean;
   onToggleEmergencyMode: () => void;
+  showEmergencyToggle?: boolean;
 }
 
 export default function TopHeader({
@@ -39,6 +40,7 @@ export default function TopHeader({
   isSyncing = false,
   isEmergencyMode,
   onToggleEmergencyMode,
+  showEmergencyToggle = true,
 }: TopHeaderProps) {
   const [timeStr, setTimeStr] = useState<string>("");
 
@@ -62,7 +64,7 @@ export default function TopHeader({
     >
       {/* Page Title & Breadcrumb */}
       <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 pr-2">
-        <h1 className="text-xs sm:text-sm md:text-base font-black text-white tracking-wide uppercase font-sans truncate max-w-[180px] sm:max-w-sm md:max-w-none md:shrink-0 md:whitespace-nowrap">
+        <h1 className="text-xs sm:text-sm md:text-base font-black text-white tracking-wide uppercase font-sans truncate min-w-0 max-w-[180px] sm:max-w-sm md:max-w-none">
           {pageTitle}
         </h1>
         <span
@@ -70,14 +72,15 @@ export default function TopHeader({
             isEmergencyMode ? "bg-red-400 animate-ping" : "bg-cyan-400"
           }`}
         />
-        <span className="hidden md:inline-block text-[11px] font-mono text-slate-400 shrink-0">
+        <span className="hidden min-[1800px]:inline-block text-[11px] font-mono text-slate-400 shrink-0">
           COMMAND OS
         </span>
       </div>
 
       {/* Top Header Actions */}
       <div className="flex items-center space-x-2 sm:space-x-3 text-xs">
-        {/* Emergency Mode Toggle */}
+        {/* Emergency Mode Toggle (shown on the Dashboard only) */}
+        {showEmergencyToggle && (
         <button
           onClick={onToggleEmergencyMode}
           data-testid="emergency-toggle"
@@ -93,17 +96,18 @@ export default function TopHeader({
             {isEmergencyMode ? "EMERGENCY MODE: ACTIVE" : "EMERGENCY MODE"}
           </span>
         </button>
+        )}
 
         {/* Scenario Selector Dropdown */}
         <div className="hidden sm:flex items-center space-x-1.5 bg-[#131d31] border border-[#22334e] rounded-lg px-2.5 py-1">
           <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-          <span className="text-[11px] font-semibold text-slate-300 hidden md:inline">
+          <span className="text-[11px] font-semibold text-slate-300 hidden min-[1800px]:inline">
             Scenario:
           </span>
           <select
             value={activeScenario}
             onChange={(e) => onSelectScenario(e.target.value)}
-            className="bg-transparent text-white text-xs font-medium focus:outline-none cursor-pointer pr-1"
+            className="bg-transparent text-white text-xs font-medium focus:outline-none cursor-pointer pr-1 truncate max-w-[12rem] xl:max-w-[16rem] min-[1800px]:max-w-none"
           >
             {scenarios.map((s) => (
               <option key={s.id} value={s.id} className="bg-[#0f172a] text-slate-200">
@@ -114,7 +118,7 @@ export default function TopHeader({
         </div>
 
         {/* Live Clock */}
-        <div className="hidden lg:flex items-center space-x-1.5 bg-[#131d31] border border-[#22334e] rounded-lg px-2.5 py-1 text-slate-300 font-mono text-[11px]">
+        <div className="hidden xl:flex items-center space-x-1.5 bg-[#131d31] border border-[#22334e] rounded-lg px-2.5 py-1 text-slate-300 font-mono text-[11px]">
           <Clock className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
           <span>{timeStr || "14:00:00"} IST</span>
         </div>

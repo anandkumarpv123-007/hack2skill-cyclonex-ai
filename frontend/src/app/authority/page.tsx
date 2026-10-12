@@ -345,6 +345,7 @@ export default function AuthorityDashboardPage() {
           onRefresh={() => loadData(selectedScenarioId)}
           isEmergencyMode={isEmergencyMode}
           onToggleEmergencyMode={() => setIsEmergencyMode(!isEmergencyMode)}
+          showEmergencyToggle={currentPage === "dashboard"}
         />
 
         {/* Emergency Banner */}
