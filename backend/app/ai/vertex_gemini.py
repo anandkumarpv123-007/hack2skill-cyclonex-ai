@@ -182,7 +182,10 @@ def classify_gemini_error(exc: BaseException) -> Tuple[str, str]:
 
 # Bounded resilience for transient provider errors (e.g. 503 "high demand").
 # google-genai does NOT retry by default (retry_options=None => single attempt).
-GEMINI_TOTAL_BUDGET_S = 15.0          # hard cap across all attempts and models
+GEMINI_TOTAL_BUDGET_S = 26.0          # hard cap across all attempts and models (room for primary + fallback)
+# google-genai sends the per-call timeout as the X-Server-Timeout header; the Gemini API rejects
+# deadlines shorter than ~10 s with 400 INVALID_ARGUMENT. Never start an attempt with less than this.
+GEMINI_MIN_ATTEMPT_S = 10.0
 GEMINI_ATTEMPTS_PER_MODEL = 2         # 1 retry per model, only for 5xx
 GEMINI_RETRY_DELAY_S = 1.0
 GEMINI_RETRYABLE_STATUS = {500, 502, 503, 504}
@@ -274,7 +277,7 @@ class GroundedAdvisoryEngine:
             attempt = 0
             while attempt < GEMINI_ATTEMPTS_PER_MODEL:
                 remaining_s = deadline - time.monotonic()
-                if remaining_s < 2.0:
+                if remaining_s < GEMINI_MIN_ATTEMPT_S:
                     if reason is None:
                         reason, self.last_fallback_detail = "REQUEST_TIMEOUT", "Gemini time budget exhausted"
                     return None, reason
@@ -304,6 +307,8 @@ class GroundedAdvisoryEngine:
                         f"Gemini API invocation failed: model={model} attempt={attempt} "
                         f"reason={reason} detail={detail}"
                     )
+                    if reason == "INVALID_REQUEST" and "DEADLINE" in str(e).upper():
+                        break  # deadline rejected as too short: never repeat it; try the next model
                     if reason == "INVALID_REQUEST" and use_thinking and "THINKING" in str(e).upper():
                         use_thinking = False  # model rejected the thinking option; retry without it
                         continue
@@ -311,7 +316,7 @@ class GroundedAdvisoryEngine:
                         send_image = False  # model/request rejected the image; retry text-only
                         continue
                     if code in GEMINI_RETRYABLE_STATUS and attempt < GEMINI_ATTEMPTS_PER_MODEL:
-                        time.sleep(min(GEMINI_RETRY_DELAY_S, max(0.0, deadline - time.monotonic() - 2.0)))
+                        time.sleep(min(GEMINI_RETRY_DELAY_S, max(0.0, deadline - time.monotonic() - GEMINI_MIN_ATTEMPT_S)))
                         continue
                     if reason in GEMINI_TRY_NEXT_MODEL_REASONS:
                         break  # try next model

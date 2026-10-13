@@ -137,3 +137,38 @@ def test_defaults_point_to_available_model():
     assert Settings.model_fields["GEMINI_MODEL"].default == "gemini-3.5-flash-lite"
     assert Settings.model_fields["GEMINI_FALLBACK_MODEL"].default == "gemini-flash-lite-latest"
     assert Settings.model_fields["GEMINI_THINKING_LEVEL"].default == "LOW"
+
+
+def test_every_attempt_gets_at_least_the_minimum_server_deadline(monkeypatch):
+    """Regression (13 Oct): after a slow 503 on the primary, the fallback was sent with a
+    deadline under 10 s and the Gemini API answered 400 INVALID_ARGUMENT."""
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(vertex_gemini.time, "monotonic", lambda: clock["t"])
+    script = [FakeAPIError(503, "UNAVAILABLE", "high demand"),
+              FakeAPIError(503, "UNAVAILABLE", "high demand"),
+              OK]
+    calls = _install(monkeypatch, script)
+    orig = genai.Client
+
+    class SlowClient(orig):
+        def __init__(self, api_key, http_options):
+            super().__init__(api_key, http_options)
+            inner = self.models.generate_content
+
+            def slow(model, contents, config):
+                clock["t"] += 6.0  # each failed call burns 6 s
+                return inner(model=model, contents=contents, config=config)
+            self.models.generate_content = slow
+
+    monkeypatch.setattr(genai, "Client", SlowClient)
+    adv = advisory_engine.generate_advisory(GT)
+    assert adv["is_live_ai"] is True
+    assert all(c["config"].http_options.timeout >= vertex_gemini.GEMINI_MIN_ATTEMPT_S * 1000 for c in calls)
+    assert [c["model"] for c in calls][-1] == "gemini-3.5-flash"
+
+
+def test_deadline_too_short_400_moves_to_next_model(monkeypatch):
+    calls = _install(monkeypatch, [FakeAPIError(400, "INVALID_ARGUMENT", "Deadline is too short"), OK])
+    adv = advisory_engine.generate_advisory(GT)
+    assert adv["is_live_ai"] is True
+    assert [c["model"] for c in calls] == ["gemini-3.8-flash", "gemini-3.5-flash"]
