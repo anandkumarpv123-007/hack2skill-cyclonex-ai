@@ -11,6 +11,8 @@ interface EmergencyBannerProps {
   highestRiskDistrict: string;
   severity?: string;
   isEmergencyMode?: boolean;
+  isScenario?: boolean;
+  scenarioYear?: number;
   onViewMap: () => void;
 }
 
@@ -23,6 +25,8 @@ export default function EmergencyBanner({
   highestRiskDistrict,
   severity = "HIGH",
   isEmergencyMode = false,
+  isScenario = true,
+  scenarioYear,
   onViewMap,
 }: EmergencyBannerProps) {
   return (
@@ -39,6 +43,14 @@ export default function EmergencyBanner({
               <span className="font-mono text-[11px] font-black tracking-widest text-red-400 uppercase">
                 ⚠ CYCLONE IMPACT THREAT ALERT
               </span>
+              {isScenario && (
+                <span
+                  title="Replay of a benchmark cyclone scenario, not current conditions"
+                  className="px-2 py-0.5 rounded border border-amber-400/70 bg-amber-500/15 text-amber-200 font-mono text-[10px] font-black tracking-wider"
+                >
+                  BENCHMARK SCENARIO{scenarioYear ? ` · ${scenarioYear}` : ""} · NOT CURRENT CONDITIONS
+                </span>
+              )}
               <RiskBadge level={severity} size="sm" />
               <span className="text-white font-bold tracking-wide">
                 • {cycloneName.toUpperCase()} ({category})

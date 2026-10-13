@@ -362,6 +362,8 @@ export default function AuthorityDashboardPage() {
             highestRiskDistrict={highestCvi.district}
             severity={getCviSeverity(highestCvi.cvi_score)}
             isEmergencyMode={isEmergencyMode}
+            isScenario={cyclone.is_simulated !== false}
+            scenarioYear={cyclone.year}
             onViewMap={() => setCurrentPage("map")}
           />
         )}
